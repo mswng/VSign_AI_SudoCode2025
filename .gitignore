@@ -10,6 +10,11 @@ __pycache__/
 venv/
 .env
 
+log/
+*.log
+*.json
+results.txt
+
 # Django
 /staticfiles/
 /media/
