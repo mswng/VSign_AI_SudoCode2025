@@ -1,3 +1,6 @@
 from django.contrib import admin
+from progress.models import ReviewReminder, ProgressStatistic
 
-# Register your models here.
+# PROGRESS
+admin.site.register(ReviewReminder)
+admin.site.register(ProgressStatistic)

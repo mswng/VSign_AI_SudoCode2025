@@ -5,15 +5,14 @@ __pycache__/
 *.pyd
 *.db
 *.sqlite3
-
 # Virtual env
 venv/
 .env
 
-log/
+logs/
 *.log
 *.json
-results.txt
+
 
 # Django
 /staticfiles/

@@ -21,9 +21,15 @@ from home import views as home_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('login/', views.login_view, name='login'), 
-    path('', home_views.home, name='home'),
-    path('logout/', views.logout, name='logout'),
     path('accounts/', include('allauth.urls')), 
+    path('', home_views.home, name='home'),
+
+    path('register/', views.Sign_Up.as_view(), name='register'),
+    path('login/', views.Sign_In.as_view(), name='login'), 
+    path('logout/', views.Logout, name='logout'),
+    
+
+    path('profile/', views.ThongTinCaNhan, name='profile'),
+    path('profile_edit/', views.ChinhSuaThongTinCaNhan.as_view(), name='profile_edit'),
     
 ]
