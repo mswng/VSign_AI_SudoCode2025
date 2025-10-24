@@ -10,3 +10,5 @@ PyJWT
 python-decouple
 ezgmail
 cryptography
+django-cors-headers
+nanoid
