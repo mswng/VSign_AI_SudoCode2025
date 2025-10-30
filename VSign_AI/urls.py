@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 from users import views 
 from home import views as home_views 
+from practice import views as practice_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,9 +28,14 @@ urlpatterns = [
     path('register/', views.Sign_Up.as_view(), name='register'),
     path('login/', views.Sign_In.as_view(), name='login'), 
     path('logout/', views.Logout, name='logout'),
+
+    path('verify_otp/', views.validate_otp_and_register, name='verify_otp'),
     
 
     path('profile/', views.ThongTinCaNhan, name='profile'),
     path('profile_edit/', views.ChinhSuaThongTinCaNhan.as_view(), name='profile_edit'),
+
+    path('chatbot/', practice_views.ask_ai_page, name="chatbot"),
+    path('api/chatbot/', practice_views.ask_ai, name="chatbot_api"),
     
 ]

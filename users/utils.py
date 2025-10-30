@@ -6,21 +6,20 @@ from asgiref.sync import sync_to_async
 def generate_otp():
     return str(random.randint(1000, 9999))
 
-def send_otp_email(username, otp):
+def send_otp_email(email, otp):
     context = {
-        'name': username,
         'otp': otp,
-        'system_name': 'Sân Cầu Lông Siêu Cấp Vip Pro'  # Thay bằng tên hệ thống của bạn
+        'system_name': 'Silent Speak',
     }
-    html_content = render_to_string('app1/Email_Sign_up.html', context)
-    # Tạo email
-    email = EmailMessage(
-        subject='Xác nhận đăng kí tài khoản',  # Tiêu đề email
-        body=html_content,  # Nội dung email (HTML)
-        to=[username],  # Gửi đến email người dùng
+    html_content = render_to_string('Email_Sign_up.html', context)
+    email_message = EmailMessage(
+        subject='Xác nhận đăng kí tài khoản',
+        body=html_content,
+        to=[email],
     )
-    email.content_subtype = 'html'  # Đặt email ở định dạng HTML
-    email.send()
+    email_message.content_subtype = 'html'
+    email_message.send()
+
 
 def get_user_role(request):
     user = request.user

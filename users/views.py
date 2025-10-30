@@ -19,54 +19,65 @@ from django.contrib.auth.decorators import login_required
 import json
 from .models import Customer
 from .utils import get_user_role, get_menu_by_role 
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 # HÀM KIỂM TRA MÃ OTP ĐỂ TÁI SỬ DỤNG:
 # GỬI OTP KHI NGƯỜI DÙNG YÊU CẦU
 def handle_send_otp(request, form_input):
     if form_input.is_valid():
         username = form_input.cleaned_data['username']
+        email = form_input.cleaned_data['email']
+
+        # Tạo OTP
         otp = generate_otp()
-        request.session['otp'] = otp  # Lưu OTP vào session
-        request.session['username'] = username  # Lưu username
-        request.session['otp_created_at'] = timezone.now().isoformat()  # Lưu thời gian tạo OTP
-        send_otp_email(username, otp)
-        
+
+        # Lưu OTP + thông tin tạm thời vào session
+        request.session['otp'] = otp
+        request.session['username'] = username
+        request.session['email'] = email
+        request.session['password'] = form_input.cleaned_data['password']  # dùng sau khi OTP đúng
+        request.session['otp_created_at'] = timezone.now().isoformat()  # lưu thời gian tạo OTP
+
+        # Gửi OTP qua email
+        send_otp_email(email, otp)
 
 class Sign_Up(View):
     def get(self, request):
         sign_up = SignUpForm()
         context = {'SignUp': sign_up}
         return render(request, 'register.html', context)
-    
-    
+
     def post(self, request):
-        print('post')
-        sign_up = SignUpForm(request.POST, initial={'otp': request.session.get('otp')})
-        context = {'SignUp': sign_up}
-        
-        # trả về lỗi nếu nhập sai
-        if not sign_up.is_valid():
-            return render(request, 'register.html', context)
+        # Kiểm tra xem có phải request AJAX không
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            sign_up = SignUpForm(request.POST)
 
-        # Nếu form hợp lệ, lưu thông tin tạm thời vào session
-        username = sign_up.cleaned_data['username']
-        email = sign_up.cleaned_data['email']
-        password = sign_up.cleaned_data['password']
-        
-        request.session['username'] = username
-        request.session['email'] = email
-        request.session['password'] = password
+            if not sign_up.is_valid():
+                # Trả lỗi để JS hiển thị
+                return JsonResponse({
+                    "success": False,
+                    "errors": sign_up.errors
+                })
 
-        # Gửi OTP sau khi form hợp lệ
-        handle_send_otp(request, sign_up)
+            # Lấy dữ liệu hợp lệ
+            username = sign_up.cleaned_data['username']
+            email = sign_up.cleaned_data['email']
+            password = sign_up.cleaned_data['password']
 
-        context['action'] = 'SIGN_UP'  
+            # Lưu tạm vào session
+            request.session['username'] = username
+            request.session['email'] = email
+            request.session['password'] = password
 
-        return render(request, 'app1/Enter_OTP.html', context)
-    
-# Trang nhập mã OTP   
-def trangOTP(request):  
-    return render(request, 'app1/Enter_OTP.html')
+            # Gửi OTP qua email
+            handle_send_otp(request, sign_up)
+
+            # Báo lại JS mở modal OTP
+            return JsonResponse({"success": True})
+
+        # Nếu không phải AJAX thì load lại trang
+        return render(request, 'register.html', {"SignUp": SignUpForm()})
 
 # file get_user_role đã chuyển qua processor
 def get_menu_by_role(user_role):
@@ -76,14 +87,28 @@ def get_menu_by_role(user_role):
         return 'app1/Menu.html'
     
 #  hàm tạo User
-def create_user_account(username, full_name, password):
+from django.contrib.auth.models import User
+
+
+def create_user_account(username, password, email, date_of_birth=None):
     try:
-        # Tạo đối tượng User trong database
-        user = User.objects.create_user(username=username,email=username ,first_name=full_name, password=password)
+        if User.objects.filter(username=username).exists():
+            return None
+        if User.objects.filter(email=email).exists():
+            return None
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            date_of_birth=date_of_birth
+        )
         user.save()
         return user
-    except Exception:
+
+    except Exception as e:
         return None
+
 
 def validate_otp(request):
    
