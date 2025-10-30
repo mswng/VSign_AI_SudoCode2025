@@ -4,182 +4,75 @@
 <meta charset="UTF-8">
 <title>Đăng ký tài khoản</title>
 <style>
-body { font-family: Arial; background: #f4f6f8; display:flex; justify-content:center; align-items:center; height:100vh; }
+body { font-family: Arial; background: #f4f6f8; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
 .register-container { background:white; padding:30px 40px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); width:400px; }
 .input-box { margin-bottom:16px; position:relative; }
 input, select { width:100%; padding:10px; margin-top:4px; border:1px solid #ccc; border-radius:6px; }
 button { width:100%; padding:10px; background:#2b6cb0; color:white; border:none; border-radius:6px; cursor:pointer; }
 button:hover { background:#1a4e86; }
 .error-text { color:red; font-size:13px; margin-top:4px; }
+
 /* Modal */
-.modal { position:fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; display:none;}
-.modal-content { background:white; padding:30px; border-radius:10px; text-align:center; }
+.modal { position:fixed; inset:0; background: rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center;}
+.modal-content { background:white; padding:30px; border-radius:10px; text-align:center; width:350px; }
 .otp-box { width:50px; height:50px; text-align:center; font-size:20px; margin:5px; }
-.close { color:#aaa; float:right; font-size:22px; cursor:pointer; }
+.close { float:right; font-size:22px; cursor:pointer; }
 .close:hover { color:black; }
 .toggle-password { position:absolute; right:10px; top:38px; cursor:pointer; }
 </style>
 </head>
 <body>
+
 <div class="register-container">
     <h2>Đăng ký tài khoản</h2>
-    <form id="input-box" action="{% url 'register' %}" method="post">
-        {% csrf_token %}
 
-        <!-- Username -->
+    <form id="registerForm" action="{% url 'register' %}" method="post">
+
         <div class="input-box">
-            <label for="username_SignUp">Tên đăng nhập</label>
+            <label>Tên đăng nhập</label>
             {{ SignUp.username }}
             {% if SignUp.username.errors %}
                 <div class="error-text">{{ SignUp.username.errors.0 }}</div>
             {% endif %}
         </div>
 
-        <!-- Email -->
         <div class="input-box">
-            <label for="email">Email</label>
+            <label>Email</label>
             {{ SignUp.email }}
             {% if SignUp.email.errors %}
                 <div class="error-text">{{ SignUp.email.errors.0 }}</div>
             {% endif %}
         </div>
 
-        <!-- Sex -->
         <div class="input-box">
-            <label for="sex">Giới tính</label>
+            <label>Giới tính</label>
             {{ SignUp.sex }}
-            {% if SignUp.sex.errors %}
-                <div class="error-text">{{ SignUp.sex.errors.0 }}</div>
-            {% endif %}
         </div>
 
-        <!-- Date of Birth -->
         <div class="input-box">
-            <label for="date_of_birth">Ngày sinh</label>
+            <label>Ngày sinh</label>
             {{ SignUp.date_of_birth }}
-            {% if SignUp.date_of_birth.errors %}
-                <div class="error-text">{{ SignUp.date_of_birth.errors.0 }}</div>
-            {% endif %}
         </div>
 
-        <!-- Password -->
         <div class="input-box">
-            <label for="id_password">Nhập mật khẩu</label>
+            <label>Mật khẩu</label>
             {{ SignUp.password }}
-            <span class="toggle-password" onclick="togglePasswordVisibility('id_password')">&#128065;</span>
-            {% if SignUp.password.errors %}
-                <div class="error-text">{{ SignUp.password.errors.0 }}</div>
-            {% endif %}
+            <span class="toggle-password" onclick="togglePassword('id_password')">&#128065;</span>
         </div>
 
-        <!-- Confirm Password -->
         <div class="input-box">
-            <label for="id_confirm_password">Nhập lại mật khẩu</label>
+            <label>Nhập lại mật khẩu</label>
             {{ SignUp.confirm_password }}
-            <span class="toggle-password" onclick="togglePasswordVisibility('id_confirm_password')">&#128065;</span>
-            <div class="error-text" id="confirm-error"></div>
-            {% if SignUp.confirm_password.errors %}
-                <div class="error-text">{{ SignUp.confirm_password.errors.0 }}</div>
-            {% endif %}
+            <span class="toggle-password" onclick="togglePassword('id_confirm_password')">&#128065;</span>
+            <div id="confirm-error" class="error-text"></div>
         </div>
 
         <button type="submit">Đăng ký</button>
     </form>
 </div>
 
-<!-- Modal OTP -->
-<div id="otpModal" class="modal">
-  <div class="modal-content">
-    <span class="close" id="closeModal">&times;</span>
-    <h3>Nhập mã OTP</h3>
-    <p>Vui lòng kiểm tra email của bạn và nhập mã gồm 4 chữ số.</p>
-    <div id="otp-inputs">
-      <input type="text" maxlength="1" class="otp-box" id="otp1">
-      <input type="text" maxlength="1" class="otp-box" id="otp2">
-      <input type="text" maxlength="1" class="otp-box" id="otp3">
-      <input type="text" maxlength="1" class="otp-box" id="otp4">
-    </div>
-    <p id="timer">Mã hết hạn sau: <span id="countdown">60</span>s</p>
-    <button id="verifyOtpBtn">Xác nhận</button>
-  </div>
+
 </div>
 
-<script>
-const form = document.getElementById("input-box");
-const confirmError = document.getElementById("confirm-error");
-const otpModal = document.getElementById("otpModal");
-
-form.addEventListener("submit", function(e) {
-    e.preventDefault(); // chặn submit mặc định
-
-    const pass = document.getElementById("id_password").value;
-    const confirm = document.getElementById("id_confirm_password").value;
-
-    // Kiểm tra mật khẩu khớp
-    if(pass !== confirm){
-        confirmError.textContent = "Mật khẩu không khớp!";
-        return;
-    } else {
-        confirmError.textContent = "";
-    }
-
-    // Nếu form hợp lệ, mở modal OTP
-    openOtpModal();
-});
-
-// Toggle password
-function togglePasswordVisibility(id){
-    const input = document.getElementById(id);
-    if(input.type === "password") input.type = "text";
-    else input.type = "password";
-}
-
-// Modal
-function openOtpModal(){
-    otpModal.style.display = "flex";
-    startCountdown();
-    document.getElementById("otp1").focus();
-}
-
-document.getElementById("closeModal").addEventListener("click", function(){
-    otpModal.style.display = "none";
-});
-
-// OTP focus tự nhảy
-const otpInputs = document.querySelectorAll(".otp-box");
-otpInputs.forEach((input,index)=>{
-    input.addEventListener("input",()=>{
-        if(input.value.length===1 && index<otpInputs.length-1){
-            otpInputs[index+1].focus();
-        }
-    });
-});
-
-// Countdown OTP
-function startCountdown(){
-    let timeLeft = 60;
-    const countdownEl = document.getElementById("countdown");
-    countdownEl.textContent = timeLeft;
-    const timer = setInterval(()=>{
-        timeLeft--;
-        countdownEl.textContent = timeLeft;
-        if(timeLeft <=0){
-            clearInterval(timer);
-            countdownEl.textContent="Hết hạn";
-            document.getElementById("verifyOtpBtn").disabled = true;
-        }
-    },1000);
-}
-
-// Verify OTP
-document.getElementById("verifyOtpBtn").addEventListener("click",()=>{
-    const otp = Array.from(otpInputs).map(i=>i.value).join("");
-    if(otp.length===4){
-        alert("Đăng ký tài khoản thành công");
-    } else {
-        alert("Vui lòng nhập đủ 4 chữ số OTP");
-    }
-});
-</script>
 </body>
 </html>
