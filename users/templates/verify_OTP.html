@@ -1,0 +1,283 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trang OTP</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <style>
+        * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 750px 5px 0;
+            background-image: url(../images/anhnen.jpg);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .Signup-btn {
+            width: 50%;
+            padding: 10px 20px;
+            margin: 5px 0;
+            background: #2f9cf4;
+            border: none;
+            border-radius: 99px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .Signup-btn:hover {
+            background: #0b87ec;
+        }
+
+        .otp-modal {
+            display: block;
+            position: fixed;
+            align-items: center;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            padding: 65px 650px 5px 0;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+        }
+
+        .otp-modal-content {
+            background-color: #bdbbbb;
+            margin: 13% auto;
+            padding: 25px;
+            border: 1px solid #888;
+            width: 400px;
+            text-align: center;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            flex-direction: column;
+        }
+
+        .otp-modal-title {
+            font-size: 35px;
+            margin-bottom: 20px;
+        }
+
+        .otp-modal-content p {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .otp-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .otp-inputs input {
+            width: 65px;
+            height: 65px;
+            text-align: center;
+            font-size: 35px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .otp-inputs input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+</style>
+
+</head>
+
+<body>
+    <div class="otp-modal" id="otp-modal">
+        <div class="otp-modal-content">
+            <h2 class="otp-modal-title">Nhập mã OTP</h2>
+            <input type="hidden" id="action" value="{{ action }}">
+            <form method="post">
+                {% csrf_token %}
+                <p id="timer">
+                    Thời gian còn lại: <span id="time-left">60</span> giây
+                </p>
+                <div class="otp-inputs">
+                    <input type="text" maxlength="1" class="otp-input" />
+                    <input type="text" maxlength="1" class="otp-input" />
+                    <input type="text" maxlength="1" class="otp-input" />
+                    <input type="text" maxlength="1" class="otp-input" />
+            
+                </div>
+                <button class="Signup-btn" type="button" id="submit-otp" data-action="register">
+                    Hoàn tất
+                </button>
+                <button class="Signup-btn" type="button" id="resend-otp">
+                    Gửi lại mã OTP
+                </button>
+            </form>
+        </div>
+    </div>
+    <script>
+        let interval; // Biến lưu bộ đếm thời gian
+
+function startTimer(duration) {
+    let timer = duration;
+    let timerElement = document.getElementById('time-left');
+
+    // Xóa bộ đếm trước đó nếu có
+    clearInterval(interval);
+
+    // Bắt đầu bộ đếm mới
+    interval = setInterval(function () {
+        timerElement.textContent = timer;
+        timer--;
+
+        if (timer < 0) {
+            clearInterval(interval);
+            alert("Hết thời gian!");
+            document.getElementById('otp-modal').style.display = 'none';
+            resetTimer();
+        }
+    }, 1000);
+}
+
+function resetTimer() {
+    document.getElementById('time-left').textContent = 60;
+}
+
+// Chỉ cho phép nhập số vào các trường OTP
+const otpInputs = document.querySelectorAll('.otp-input');
+
+otpInputs.forEach((input, index) => {
+    input.addEventListener('input', (event) => {
+        const value = event.target.value;
+
+        // Kiểm tra xem giá trị nhập vào có phải là số hay không
+        if (!/^\d*$/.test(value)) {
+            event.target.value = value.slice(0, -1);
+            return;
+        }
+
+        // Tự động chuyển đến trường tiếp theo nếu đã nhập đủ 1 ký tự
+        if (value.length === 1 && index < otpInputs.length - 1) {
+            otpInputs[index + 1].focus();
+        }
+
+        // Quay lại trường trước nếu nhấn phím Backspace
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Backspace' && !event.target.value && index > 0) {
+                otpInputs[index - 1].focus();
+            }
+        });
+    });
+});
+
+// Khởi động bộ đếm thời gian khi trang tải
+document.addEventListener('DOMContentLoaded', () => {
+    startTimer(60);
+});
+
+// Gửi lại mã OTP và khởi động lại bộ đếm
+document.getElementById('resend-otp').addEventListener('click', (event) => {
+    event.preventDefault(); // Ngăn chặn hành động mặc định (nếu có)
+    resetTimer();
+    startTimer(60);
+});
+
+// Thu thập mã OTP và gửi đến server của đăng ký 
+document.getElementById("submit-otp").addEventListener("click", () => {
+    const action = document.getElementById("action").value;
+    // console.log(action);
+    
+    let otpCode = "";
+
+    // Ghép mã OTP từ các trường input
+    otpInputs.forEach((input) => {
+        otpCode += input.value.trim();  
+    });
+
+    // Kiểm tra xem mã OTP đã đủ ký tự chưa
+    if (otpCode.length === otpInputs.length) {
+        const endpoint = action === "FORGOT_PASSWORD" ?"/validate_otp_fogotpassword/" : "/validate_otp_and_register/" ;
+        const redirectUrl = action === "FORGOT_PASSWORD" ?  "/new_password/" :"/login/";
+
+        // Gửi mã OTP đến server qua fetch
+        fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value, // Dành cho Django
+            },
+            body: JSON.stringify({ otp: otpCode }),
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    alert(data.message); // Hiển thị thông báo thành công
+                    window.location.href = redirectUrl; // Chuyển hướng đến trang chính
+                } else {
+                    alert(data.message); // Hiển thị thông báo lỗi
+                }
+            })
+            .catch((error) => {
+                console.error("Lỗi khi gửi mã OTP:", error);
+                alert("Đã xảy ra lỗi khi kiểm tra mã OTP. Vui lòng thử lại sau.");
+            }); 
+    } else {
+        alert("Vui lòng nhập đủ mã OTP!");
+    }
+});
+
+//  Hàm gửi lại mã OTP khi người dùng yêu cầu:
+document.getElementById("resend-otp").addEventListener("click", function () {
+    fetch("/resend_otp/", {  // URL khớp với URLs.py
+        method: "POST",
+        headers: {
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ "action": "resend" })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("Mã OTP đã được gửi lại!");
+                document.getElementById("time-left").textContent = "60";  // Reset thời gian đếm ngược
+                startTimer(60);  // Restart timer
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Lỗi khi gửi lại mã OTP:", error);
+            alert("Đã xảy ra lỗi. Vui lòng thử lại.");
+        });
+});
+    </script>
+</body>
+</html>

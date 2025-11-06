@@ -17,6 +17,7 @@ from django.http import JsonResponse
 from .models import *
 from django.contrib.auth.decorators import login_required
 import json
+import threading
 from .models import Customer
 from .utils import get_user_role, get_menu_by_role 
 from django.contrib.auth import get_user_model
@@ -49,35 +50,32 @@ class Sign_Up(View):
         return render(request, 'register.html', context)
 
     def post(self, request):
-        # Kiểm tra xem có phải request AJAX không
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            sign_up = SignUpForm(request.POST)
+       
+        sign_up = SignUpForm(request.POST)
+        context = {'SignUp': sign_up}
 
-            if not sign_up.is_valid():
-                # Trả lỗi để JS hiển thị
-                return JsonResponse({
-                    "success": False,
-                    "errors": sign_up.errors
-                })
+        if not sign_up.is_valid():
+            # Trả lỗi để JS hiển thị
+            return render(request, 'register.html', context)
 
-            # Lấy dữ liệu hợp lệ
-            username = sign_up.cleaned_data['username']
-            email = sign_up.cleaned_data['email']
-            password = sign_up.cleaned_data['password']
+        # Lấy dữ liệu hợp lệ
+        username = sign_up.cleaned_data['username']
+        email = sign_up.cleaned_data['email']
+        password = sign_up.cleaned_data['password']
 
-            # Lưu tạm vào session
-            request.session['username'] = username
-            request.session['email'] = email
-            request.session['password'] = password
+        # Lưu tạm vào session
+        request.session['username'] = username
+        request.session['email'] = email
+        request.session['password'] = password
 
-            # Gửi OTP qua email
-            handle_send_otp(request, sign_up)
+        # Gửi OTP trong luồng riêng (background thread)
+        threading.Thread(target=handle_send_otp, args=(request, sign_up)).start()
 
-            # Báo lại JS mở modal OTP
-            return JsonResponse({"success": True})
+        return redirect('trangOTP') 
 
-        # Nếu không phải AJAX thì load lại trang
-        return render(request, 'register.html', {"SignUp": SignUpForm()})
+# Trang nhập mã OTP   
+def trangOTP(request):  
+    return render(request, 'verify_OTP.html')      
 
 # file get_user_role đã chuyển qua processor
 def get_menu_by_role(user_role):
@@ -87,10 +85,8 @@ def get_menu_by_role(user_role):
         return 'app1/Menu.html'
     
 #  hàm tạo User
-from django.contrib.auth.models import User
 
-
-def create_user_account(username, password, email, date_of_birth=None):
+def create_user_account(username,email, password, date_of_birth=None):
     try:
         if User.objects.filter(username=username).exists():
             return None
@@ -101,12 +97,13 @@ def create_user_account(username, password, email, date_of_birth=None):
             username=username,
             email=email,
             password=password,
-            date_of_birth=date_of_birth
+            
         )
         user.save()
         return user
 
     except Exception as e:
+        print("Error creating user:", e)
         return None
 
 
@@ -140,14 +137,13 @@ def validate_otp_and_register(request):
         if otp_input == otp_validation["otp_session"]:
             # Đăng ký tài khoản (chỉ thực hiện khi OTP đúng)
             username = request.session.get("username")
-            full_name = request.session.get("full_name")
+            email = request.session.get("email")
+            print("Email đăng ký:", email) 
             password = request.session.get("password")
 
             if username and password:
                 # Gọi hàm tạo người dùng
-                user = create_user_account(username, full_name, password)
-
-
+                user = create_user_account(username, email, password)
 
                 if user:
                     # Tạo đối tượng Customer liên quan

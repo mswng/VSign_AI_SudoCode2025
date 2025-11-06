@@ -26,9 +26,13 @@ urlpatterns = [
     path('', home_views.home, name='home'),
 
     path('register/', views.Sign_Up.as_view(), name='register'),
+    path('trangOTP/', views.trangOTP, name= 'trangOTP'),
     path('login/', views.Sign_In.as_view(), name='login'), 
     path('logout/', views.Logout, name='logout'),
-
+     # xác thực OTP và đăng ký trong đăng ký
+    path('validate_otp_and_register/', views.validate_otp_and_register, name='validate_otp_and_register'),
+    # gửi lại mật khẩu trong đăng ký và quên mật khẩu
+    path('resend_otp/', views.resend_otp, name='resend_otp'),
     path('verify_otp/', views.validate_otp_and_register, name='verify_otp'),
     
 
