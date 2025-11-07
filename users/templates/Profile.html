@@ -52,9 +52,9 @@
     <h2>Thông tin cá nhân</h2>
 
     <div class="info-item"><span class="label">Tên đăng nhập:</span> {{ user.username }}</div>
-    <div class="info-item"><span class="label">Email:</span> {{ profile.email }}</div>
-    <div class="info-item"><span class="label">Giới tính:</span> {{ profile.sex }}</div>
-    <div class="info-item"><span class="label">Ngày sinh:</span> {{ profile.date_of_birth|date:"d/m/Y" }}</div>
+    <div class="info-item"><span class="label">Email:</span> {{ user.customer.email }}</div>
+    <div class="info-item"><span class="label">Giới tính:</span> {{ user.customer.sex }}</div>
+    <div class="info-item"><span class="label">Ngày sinh:</span> {{ user.customer.date_of_birth|date:"d/m/Y" }}</div>
 
     <a href="{% url 'profile_edit' %}" class="btn">Chỉnh sửa</a>
   </div>

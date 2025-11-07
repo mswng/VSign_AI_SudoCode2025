@@ -1,21 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
   <meta charset="UTF-8">
   <title>SilentSpeak Chat</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
-  <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css'>
-
   <style>
-    body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; }
+    body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; }
     .center { display: flex; align-items: center; justify-content: center; height: 100vh; }
     .chat { width: 100%; max-width: 720px; background: #111827; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
     .contact.bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: #1f2937; border-bottom: 1px solid #374151; }
     .name { font-weight: 600; }
     .messages { height: 460px; overflow-y: auto; padding: 16px; }
-    .message { padding: 10px 12px; border-radius: 8px; margin: 8px 0; max-width: 85%; line-height: 1.45; }
-    .message.chatbot { background: #0ea5e9; color: #0b1220; white-space: pre-wrap; word-wrap: break-word;}
+    .message { padding: 10px 12px; border-radius: 8px; margin: 8px 0; max-width: 85%; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+    .message.chatbot { background: #0ea5e9; color: #0b1220; }
     .message.user { background: #374151; color: #e5e7eb; margin-left: auto; }
     .input { display: flex; gap: 8px; padding: 12px; background: #1f2937; border-top: 1px solid #374151; }
     .input input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #374151; background: #0b1220; color: #e5e7eb; }
@@ -23,19 +19,16 @@
     .sendButton:disabled { opacity: 0.6; cursor: not-allowed; }
   </style>
 </head>
-
 <body>
   <div class="center">
     <div class="chat">
       <div class="contact bar">
         <div class="name">SilentSpeak</div>
       </div>
-
       <div class="messages" id="chat"></div>
-
       <div class="input">
         <input id="messageInput" placeholder="Nhập tin nhắn..." type="text" onkeydown="handleKeyPress(event)" />
-        <button id="sendButton" class="fas sendButton" onclick="sendMessage()">Gửi</button>
+        <button id="sendButton" class="sendButton" onclick="sendMessage()">Gửi</button>
       </div>
     </div>
   </div>
@@ -45,6 +38,35 @@
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendButton');
 
+    // Lấy username từ Django template context
+    const USERNAME = "{{ user.username|default:'Bạn' }}";
+
+    // Greeting cá nhân hóa
+    appendMessage(`🤖 Chào ${USERNAME}! Mình là SilentSpeak. Hãy nhập câu hỏi hoặc bài tập ký hiệu nhé!`, 'chatbot');
+
+    let VOCAB_LIST = "";
+    let TOPICS = "";
+
+    // Hàm load vocab và topics từ backend
+    async function loadVocabTopics() {
+      try {
+        const res = await fetch("/api/vocab_topics/");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        VOCAB_LIST = data.flashcards.map(f => f.front_text).join(", ");
+        TOPICS = data.topics.map(t => t.title).join(", ");
+        console.log("✅ VOCAB_LIST:", VOCAB_LIST);
+        console.log("✅ TOPICS:", TOPICS);
+      } catch (err) {
+        console.error("⚠️ Lỗi khi load vocab/topics:", err);
+        appendMessage("⚠️ Không thể tải vocab/topics từ server.", 'chatbot');
+      }
+    }
+
+    // Gọi ngay khi load trang
+    loadVocabTopics();
+
     function scrollToBottom() {
       chat.scrollTop = chat.scrollHeight - chat.clientHeight;
     }
@@ -52,13 +74,10 @@
     function appendMessage(text, role) {
       const messageDiv = document.createElement('div');
       messageDiv.className = `message ${role}`;
-      messageDiv.innerHTML = text;
+      messageDiv.textContent = text;
       chat.appendChild(messageDiv);
       scrollToBottom();
     }
-
-    // Greeting
-    appendMessage('🤖 Chào bạn! Mình là SilentSpeak. Hãy nhập câu hỏi nhé!', 'chatbot');
 
     async function sendMessage() {
       const text = input.value.trim();
@@ -73,22 +92,38 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
           },
-          body: JSON.stringify({ query: text })
+          body: JSON.stringify({
+            query: text,
+            vocab_list: VOCAB_LIST,
+            topics: TOPICS
+          })
         });
 
+        const rawText = await res.text(); // đọc phản hồi thô
+        console.log("🔍 Response text:", rawText);
 
-        const data = await res.json();
-
-        if (res.ok) {
-          const reply = data.answer || data.response || JSON.stringify(data);
-          appendMessage(reply, 'chatbot');
-        } else {
-          appendMessage(`❌ Lỗi: ${data.error || 'Không rõ nguyên nhân'}`, 'chatbot');
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (err) {
+          appendMessage("⚠️ Server trả về phản hồi không hợp lệ.", 'chatbot');
+          console.error("Không phải JSON:", rawText);
+          return;
         }
+
+        if (res.ok && data.answer) {
+          appendMessage(data.answer, 'chatbot');
+        } else if (data.error) {
+          appendMessage("❌ Lỗi: " + data.error, 'chatbot');
+        } else {
+          appendMessage("⚠️ Phản hồi rỗng từ server.", 'chatbot');
+        }
+
       } catch (err) {
-        appendMessage('🚨 Lỗi kết nối tới server.', 'chatbot');
-        console.error(err);
+        console.error("🚨 Lỗi khi gửi request:", err);
+        appendMessage("🚨 Lỗi kết nối tới server.", 'chatbot');
       } finally {
         sendBtn.disabled = false;
       }
@@ -97,6 +132,7 @@
     function handleKeyPress(event) {
       if (event.key === 'Enter') sendMessage();
     }
-  </script>
+    </script>
+
 </body>
 </html>
