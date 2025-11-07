@@ -73,23 +73,23 @@
 
     <form method="POST" action="{% url 'profile_edit' %}">
       {% csrf_token %}
-      
+
       <div class="form-group">
         <label for="email">Email</label>
         <input 
           type="email" 
           id="email" 
           name="email" 
-          value="{{ profile.email|default:'' }}" 
+          value="{{ user.customer.email|default:'' }}" 
           required>
       </div>
 
       <div class="form-group">
         <label for="sex">Giới tính</label>
         <select id="sex" name="sex">
-          <option value="Nam" {% if profile.sex == 'Nam' %}selected{% endif %}>Nam</option>
-          <option value="Nữ" {% if profile.sex == 'Nữ' %}selected{% endif %}>Nữ</option>
-          <option value="Khác" {% if profile.sex == 'Khác' %}selected{% endif %}>Khác</option>
+          <option value="Nam" {% if user.customer.sex == 'Nam' %}selected{% endif %}>Nam</option>
+          <option value="Nữ" {% if user.customer.sex == 'Nữ' %}selected{% endif %}>Nữ</option>
+          <option value="Khác" {% if user.customer.sex == 'Khác' %}selected{% endif %}>Khác</option>
         </select>
       </div>
 
@@ -99,7 +99,7 @@
           type="date" 
           id="dob" 
           name="date_of_birth" 
-          value="{{ profile.date_of_birth|date:'Y-m-d' }}">
+          value="{{ user.customer.date_of_birth|date:'Y-m-d' }}">
       </div>
 
       <button type="submit" class="btn">Lưu thay đổi</button>

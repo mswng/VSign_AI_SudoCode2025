@@ -1,0 +1,113 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quên mật khẩu</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .forgot-container {
+      background: #fff;
+      padding: 40px 35px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      width: 380px;
+      text-align: center;
+    }
+    h2 {
+      margin-bottom: 10px;
+      color: #2b2b2b;
+    }
+    p {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0 15px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+    .error-list {
+      color: #d93025;
+      font-size: 13px;
+      text-align: left;
+      margin-top: -10px;
+      margin-bottom: 10px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #007bff;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .footer {
+      margin-top: 15px;
+      font-size: 13px;
+      color: #777;
+    }
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="forgot-container">
+    <h2>Quên mật khẩu</h2>
+    <p>Vui lòng nhập email hoặc tên đăng nhập để nhận mã xác nhận.</p>
+
+    <form action="{% url 'Forgot_password' %}" method="post">
+      {% csrf_token %}
+
+      <div class="input-box">
+        {{ Forgot_Password_Form.username }}
+
+        {% if Forgot_Password_Form.username.errors %}
+          <ul class="error-list">
+            {% for error in Forgot_Password_Form.username.errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <button type="submit">Gửi mã xác nhận</button>
+    </form>
+
+    <div class="footer">
+      <a href="{% url 'login' %}">Quay lại đăng nhập</a>
+    </div>
+  </div>
+
+</body>
+</html>

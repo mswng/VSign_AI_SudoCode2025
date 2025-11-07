@@ -1,5 +1,6 @@
 from pyexpat import errors
 from django import forms
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -106,6 +107,9 @@ class SignUpForm(forms.Form):
         if  User.objects.filter(username=username).exists():
             errors['username'] = "Người dùng đã tồn tại."
 
+        if User.objects.filter(email=email).exists():
+            errors['email'] = "Email này đã được sử dụng."
+
         if password and confirm_password and password != confirm_password:
             errors['confirm_password'] = "Mật khẩu không khớp."
 
@@ -118,7 +122,7 @@ class SignUpForm(forms.Form):
     
 
 
-from django import forms
+
 
 class SignInForm(forms.Form):
     username = forms.CharField(
@@ -152,7 +156,7 @@ class ForgotPasswordForm(forms.Form):
         max_length=150,
         required=True,
         widget=forms.TextInput(attrs={
-            'placeholder': 'Nhập email',
+            'placeholder': 'Tên đăng nhập',
             'id': 'id_username_ForgotPassword'
 
         })
