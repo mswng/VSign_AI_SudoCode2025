@@ -1,31 +1,45 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
 from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+from typing import ClassVar
+import os
 
-# Load .env
+
 load_dotenv()
+
 
 class Settings(BaseSettings):
     """Cấu hình ứng dụng Silent Speak - SignTutor."""
 
-    # Thông tin ứng dụng
+    # ===== Thông tin ứng dụng =====
     APP_TITLE: str = "Silent Speak"
-    
-    # Prompt hệ thống (gợi ý cho AI)
     SYSTEM_PROMPT: str = (
         "Bạn là SignTutor — trợ lý AI giúp học viên nhận diện và ghi nhớ ngôn ngữ ký hiệu Việt Nam. "
-        "Luôn sử dụng **chính xác ký hiệu mà học viên nhập** để giải thích. Không thay đổi ký hiệu, không tự chọn ký hiệu khác."
-
+        "Luôn sử dụng **chính xác ký hiệu mà học viên nhập** để giải thích. "
+        "Không thay đổi ký hiệu, không tự chọn ký hiệu khác."
     )
 
-    # Model và API keys
-    OPENAI_MODEL: str = "gpt-4.1-mini"
-    OPENROUTER_API_KEY: str  # lấy từ .env, không hardcode
-    GEMINI_API_KEY: str = ""  # để trống, lấy từ .env nếu cần
-    TAVILY_API_KEY: str = ""  # để trống, lấy từ .env nếu cần
+    # ===== Cấu hình model & API =====
+    OPENROUTER_URL: str = "https://openrouter.ai/api/v1/chat/completions"
+    OPENROUTER_API_KEY: str  
+    MODEL_NAME: str = "openai/gpt-oss-20b:free"
+
+    GEMINI_API_KEY: str = "" 
+    TAVILY_API_KEY: str = "" 
+
+    # ===== Prompt Template =====
+    BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parent
+    PROMPT_TEMPLATE_PATH: ClassVar[Path] = BASE_DIR / "prompt.txt"
+
+    @property
+    def PROMPT_TEMPLATE(self) -> str:
+        """Đọc nội dung prompt từ file."""
+        if self.PROMPT_TEMPLATE_PATH.exists():
+            return self.PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8", errors="ignore")
+        return ""
 
     class Config:
         env_file = ".env"
-        extra = "allow"  # cho phép thêm biến môi trường khác
+        extra = "allow" 
 
-# Khởi tạo settings
 settings = Settings()

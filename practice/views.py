@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .agent import query_agent
 from users.models import Topic, Flashcard 
+from .curriculum_agent import CurriculumAgent
 from django.shortcuts import render #React thì ko cần import cái này
 
 def ask_ai_page(request):
@@ -72,3 +73,97 @@ def chat_ai(request):
 
     reply = query_agent(user_id=request.user.id, learner_input=message)
     return JsonResponse({"reply": reply})
+
+from .curriculum_agent import CurriculumAgent
+
+@csrf_exempt
+def curriculum_profile_api(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Bạn cần đăng nhập để dùng chức năng này."}, status=403)
+
+    agent = CurriculumAgent(user_id=request.user.id)
+    
+    # --- Lấy profile ---
+    profile = agent.get_profile()
+    
+    # --- Lấy flashcards cần ôn tập ---
+    suggested_review = agent.suggest_review(top_n=5)
+    
+    # --- Lấy trạng thái flashcards ---
+    status = agent.get_flashcards_status()
+    
+    # --- Tạo prompt cho LLM ---
+    llm_prompt = agent.create_llm_prompt(top_n=5)
+    
+    return JsonResponse({
+        "profile": profile,
+        "suggested_review": suggested_review,
+        "flashcards_status": status,
+        "llm_prompt": llm_prompt
+    })
+
+@csrf_exempt
+def test_session_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_id = request.user.id if request.user.is_authenticated else None
+            action = data.get("action")
+            agent = CurriculumAgent(user_id=user_id)
+
+            if action == "start":
+                questions = agent.generate_check_questions(num_questions=10)
+                request.session["test_questions"] = questions
+                request.session["current_index"] = 0
+                request.session["wrong_signs"] = []
+                return JsonResponse({
+                    "question": questions[0],
+                    "remaining": len(questions) - 1
+                })
+            
+            elif action == "answer":
+                answer = data.get("answer", "").strip()
+                questions = request.session.get("test_questions", [])
+                idx = request.session.get("current_index", 0)
+                wrong_signs = request.session.get("wrong_signs", [])
+
+                if idx >= len(questions):
+                    # Hoàn tất, sinh bài tập gợi ý
+                    practice_tasks = agent.generate_practice_tasks(wrong_signs)
+                    return JsonResponse({
+                        "done": True,
+                        "message": "🎉 Bạn đã hoàn thành bài kiểm tra!",
+                        "practice_tasks": practice_tasks
+                    })
+                current_q = questions[idx]
+                correct_answer = current_q.split("'")[1]  # Lấy ký hiệu
+                correct = agent.check_answer(answer, correct_answer)
+
+                if correct:
+                    idx += 1
+                    request.session["current_index"] = idx
+                    if idx < len(questions):
+                        return JsonResponse({
+                            "correct": True,
+                            "next_question": questions[idx],
+                            "remaining": len(questions) - idx - 1
+                        })
+                    else:
+                        # ✅ Sinh practice_tasks khi hoàn thành hết
+                        wrong_signs = request.session.get("wrong_signs", [])
+                        practice_tasks = agent.generate_practice_tasks(wrong_signs)
+                        return JsonResponse({
+                            "done": True,
+                            "message": "✅ Hoàn thành tất cả câu hỏi!",
+                            "practice_tasks": practice_tasks
+                        })
+
+                else:
+                    wrong_signs.append(correct_answer)
+                    request.session["wrong_signs"] = wrong_signs
+                    return JsonResponse({"correct": False, "message": f"Sai rồi, hãy ôn lại ký hiệu '{correct_answer}'!"})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid method"}, status=405)

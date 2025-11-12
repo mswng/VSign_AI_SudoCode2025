@@ -6,6 +6,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="{% static 'favicon.ico' %}?v=1" type="image/x-icon">
   <title>Đăng nhập</title>
   <style>
     body {
@@ -51,7 +52,8 @@
     button:hover {
       background: #0056b3;
     }
-    .google-btn {
+    .google-btn,
+    .g_id_signin {
       background: white;
       color: #555;
       border: 1px solid #ddd;
@@ -106,12 +108,32 @@
     <div class="divider">hoặc</div>
 
     <!-- Nút đăng nhập bằng Google -->
-    <a href="{% provider_login_url 'google' %}" style="text-decoration: none;">
+    {% comment %} <a href="{% provider_login_url 'google' %}" style="text-decoration: none;">
       <button class="google-btn">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
         Đăng nhập với Google
       </button>
-    </a>
+    </a> {% endcomment %}
+    <!-- Load Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- Onload config -->
+<div id="g_id_onload"
+     data-client_id="{{ GOOGLE_CLIENT_ID }}"  
+     data-login_uri="http://localhost:8000/google-login/"       
+     data-auto_prompt="false">
+</div>
+
+<!-- Nút đăng nhập Google -->
+<div class="g_id_signin"
+     data-type="standard"
+     data-shape="rectangular"
+     data-theme="outline"
+     data-text="signin_with"
+     data-size="large"
+     data-logo_alignment="left">
+</div>
+
 
     <a href="{% url 'Forgot_password' %}" style="text-decoration: none; color: blue;">Quên mật khẩu</a>
   </div>
