@@ -1,7 +1,5 @@
 from datetime import timedelta
-from django.shortcuts import render
-from django.shortcuts import render
-from django.shortcuts import render,redirect
+from django.shortcuts import render, redirect
 from django.views import View
 from django.contrib.auth.models import User
 from django.http import HttpResponse
@@ -16,12 +14,19 @@ from django.utils import timezone
 from django.http import JsonResponse
 from datetime import date
 from .models import *
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+from django.contrib.auth import login
+from django.contrib.auth.models import User
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from django.views.decorators.csrf import csrf_exempt
 import json
+import os
 import threading
 from .models import Customer
 from .utils import get_user_role, get_menu_by_role 
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
 
 # HÀM KIỂM TRA MÃ OTP ĐỂ TÁI SỬ DỤNG:
@@ -47,6 +52,7 @@ def handle_send_otp(request, form_input):
     # 📩 Gửi OTP qua email
     send_otp_email(email, otp)
 
+# Đăng ký
 class Sign_Up(View):
     def get(self, request):
         sign_up = SignUpForm()
@@ -214,9 +220,43 @@ def resend_otp(request):
 
     return JsonResponse({'success': False, 'message': 'Yêu cầu không hợp lệ.'})
 
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
+@csrf_exempt
+def google_login(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        token = data.get("credential")
+        if not token:
+            return JsonResponse({"status": "error", "message": "Missing credential"}, status=400)
+
+        # Xác thực token Google
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), GOOGLE_CLIENT_ID)
+        email = idinfo.get("email")
+        if not email:
+            return JsonResponse({"status": "error", "message": "Email not found in token"}, status=400)
+
+        # Lấy hoặc tạo user
+        user, created = User.objects.get_or_create(username=email, defaults={"email": email})
+        if created:
+            Customer.objects.create(user=user)
+
+        # Tạo session server-side
+        login(request, user)
+
+        # Trả về thành công + redirect URL cho frontend
+        return JsonResponse({"status": "ok", "email": email, "redirect": "/"})
+
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Invalid token"}, status=400)
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
 
 
-
+# Đăng nhập
 class Sign_In(View):
     def get(self, request):
         remembered_email = request.COOKIES.get('remembered_email', '')
@@ -224,6 +264,7 @@ class Sign_In(View):
         context = {
             'SignIn': sign_in_form,
             'remember_me': bool(remembered_email),
+            'GOOGLE_CLIENT_ID': GOOGLE_CLIENT_ID
         }
         return render(request, 'login.html', context)
 
@@ -368,7 +409,7 @@ def Logout(request):
     storage = messages.get_messages(request)
     for _ in storage:
         pass  # Duyệt qua để xóa toàn bộ message
-    return redirect('home')
+    return redirect('login')
 
 # Thông tin cá nhân
 def ThongTinCaNhan(request):

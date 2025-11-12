@@ -28,7 +28,7 @@
       <div class="messages" id="chat"></div>
       <div class="input">
         <input id="messageInput" placeholder="Nhập tin nhắn..." type="text" onkeydown="handleKeyPress(event)" />
-        <button id="sendButton" class="sendButton" onclick="sendMessage()">Gửi</button>
+        <button id="sendButton" type="button" class="sendButton" onclick="sendMessage()">Gửi</button>
       </div>
     </div>
   </div>
@@ -38,39 +38,36 @@
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendButton');
 
-    // Lấy username từ Django template context
     const USERNAME = "{{ user.username|default:'Bạn' }}";
 
-    // Greeting cá nhân hóa
-    appendMessage(`🤖 Chào ${USERNAME}! Mình là SilentSpeak. Hãy nhập câu hỏi hoặc bài tập ký hiệu nhé!`, 'chatbot');
+    appendMessage(`🤖 Chào ${USERNAME}! Mình là SilentSpeak. 
+    Gõ "bắt đầu kiểm tra" để vào chế độ test, hoặc trò chuyện như bình thường nhé!`, 'chatbot');
 
     let VOCAB_LIST = "";
     let TOPICS = "";
+    let testMode = false; // ← trạng thái test
+    let currentQuestion = null;
 
-    // Hàm load vocab và topics từ backend
+    // ======== 1️⃣ Load vocab và topics từ backend ==========
     async function loadVocabTopics() {
       try {
         const res = await fetch("/api/vocab_topics/");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-
         VOCAB_LIST = data.flashcards.map(f => f.front_text).join(", ");
         TOPICS = data.topics.map(t => t.title).join(", ");
         console.log("✅ VOCAB_LIST:", VOCAB_LIST);
-        console.log("✅ TOPICS:", TOPICS);
       } catch (err) {
         console.error("⚠️ Lỗi khi load vocab/topics:", err);
         appendMessage("⚠️ Không thể tải vocab/topics từ server.", 'chatbot');
       }
     }
-
-    // Gọi ngay khi load trang
     loadVocabTopics();
 
+    // ======== 2️⃣ Hàm tiện ích UI ==========
     function scrollToBottom() {
       chat.scrollTop = chat.scrollHeight - chat.clientHeight;
     }
-
     function appendMessage(text, role) {
       const messageDiv = document.createElement('div');
       messageDiv.className = `message ${role}`;
@@ -79,6 +76,7 @@
       scrollToBottom();
     }
 
+    // ======== 3️⃣ Hàm gửi tin nhắn thường ==========
     async function sendMessage() {
       const text = input.value.trim();
       if (!text) return;
@@ -87,6 +85,21 @@
       input.value = '';
       sendBtn.disabled = true;
 
+      // Nếu đang trong chế độ test → chuyển sang xử lý answer test
+      if (testMode) {
+        await sendAnswer(text);
+        sendBtn.disabled = false;
+        return;
+      }
+
+      // Nếu người dùng gõ "bắt đầu kiểm tra"
+      if (text.toLowerCase().includes("bắt đầu kiểm tra")) {
+        await startTest();
+        sendBtn.disabled = false;
+        return;
+      }
+
+      // → Chế độ chatbot thông thường
       try {
         const res = await fetch('/api/chatbot/', {
           method: 'POST',
@@ -101,13 +114,11 @@
           })
         });
 
-        const rawText = await res.text(); // đọc phản hồi thô
-        console.log("🔍 Response text:", rawText);
-
+        const rawText = await res.text();
         let data;
         try {
           data = JSON.parse(rawText);
-        } catch (err) {
+        } catch {
           appendMessage("⚠️ Server trả về phản hồi không hợp lệ.", 'chatbot');
           console.error("Không phải JSON:", rawText);
           return;
@@ -120,7 +131,6 @@
         } else {
           appendMessage("⚠️ Phản hồi rỗng từ server.", 'chatbot');
         }
-
       } catch (err) {
         console.error("🚨 Lỗi khi gửi request:", err);
         appendMessage("🚨 Lỗi kết nối tới server.", 'chatbot');
@@ -132,7 +142,62 @@
     function handleKeyPress(event) {
       if (event.key === 'Enter') sendMessage();
     }
-    </script>
+
+    // ======== 4️⃣ Bắt đầu kiểm tra (test mode) ==========
+    async function startTest() {
+      appendMessage("🧠 Bắt đầu bài kiểm tra! Hãy trả lời từng câu hỏi nhé.", "chatbot");
+      testMode = true;
+      const res = await fetch('/api/test_session/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' })
+      });
+      const data = await res.json();
+      if (data.question) {
+        currentQuestion = data.question;
+        appendMessage("🧩 " + currentQuestion, "chatbot");
+      } else {
+        appendMessage("⚠️ Không có câu hỏi nào.", "chatbot");
+      }
+    }
+
+    // ======== 5️⃣ Gửi đáp án cho câu hỏi ==========
+    async function sendAnswer(answer) {
+      appendMessage(answer, 'user');
+
+      const res = await fetch('/api/test_session/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'answer', answer })
+      });
+      const data = await res.json();
+
+      if (data.correct) {
+        appendMessage("✅ Chính xác!", "chatbot");
+        if (data.next_question) {
+          appendMessage("👉 " + data.next_question, "chatbot");
+        } else if (data.done) {
+          appendMessage(data.message, "chatbot");
+          if (data.practice_tasks) {
+            appendMessage("🎯 Bài tập ôn tập:", "chatbot");
+            data.practice_tasks.forEach(task => appendMessage(task, "chatbot"));
+          }
+          testMode = false; // ✅ Thoát test mode
+        }
+      } else if (data.done) {
+        // Khi hết câu, hiển thị bài tập ôn
+        appendMessage(data.message, "chatbot");
+        if (data.practice_tasks) {
+          appendMessage("🎯 Bài tập ôn tập:", "chatbot");
+          data.practice_tasks.forEach(task => appendMessage(task, "chatbot"));
+        }
+        testMode = false;
+      } else {
+        appendMessage("❌ " + data.message, "chatbot");
+      }
+    }
+  </script>
+
 
 </body>
 </html>
