@@ -23,24 +23,18 @@ from practice import views as practice_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')), 
-    path('', home_views.home, name='home'),
+    path('', home_views.home_api, name='home_api'),
 
-    path('register/', views.Sign_Up.as_view(), name='register'),
-    path('trangOTP/', views.trangOTP, name= 'trangOTP'),
-    path('login/', views.Sign_In.as_view(), name='login'), 
-    path('logout/', views.Logout, name='logout'),
-    path('forgot_password/', views.ForgotPassword.as_view(), name= 'Forgot_password'),
-    # xác thực OTP và đăng ký trong đăng ký
-    path('validate_otp_and_register/', views.validate_otp_and_register, name='validate_otp_and_register'),
-    # gửi lại mật khẩu trong đăng ký và quên mật khẩu
-    path('resend_otp/', views.resend_otp, name='resend_otp'),
-    # xác thực OTP quên mật khẩu
-    path('validate_otp_fogotpassword/', views.validate_otp_of_ForgotPassword, name='validate_otp_of_ForgotPassword'),
-    path('new_password/', views.New_password.as_view(), name= 'New_Password'),
-    
+    path('api/auth/login/', views.login_api, name="login_api"),
+    path('api/auth/logout/', views.logout_api, name="logout_api"),
+    path('api/auth/register/', views.register_api, name="register_api"),
+    path('api/auth/google-login/', views.google_login, name="google_login"),
+    path('api/auth/send-otp/', views.send_otp_api, name="send_otp_api"),
+    path('api/auth/verify-otp/', views.verify_otp_api, name="verify_otp_api"),
+    path('api/auth/change-password/', views.change_password_api, name="change_password_api"),
 
-    path('profile/', views.ThongTinCaNhan, name='profile'),
-    path('profile_edit/', views.ChinhSuaThongTinCaNhan.as_view(), name='profile_edit'),
+    path('api/auth/profile/', views.profile_api, name='profile_api'),
+    path('api/auth/profile/update/', views.update_profile_api, name='update_profile_api'),
 
 
     path('chatbot/', practice_views.ask_ai_page, name="ask_ai_page"),
@@ -50,5 +44,5 @@ urlpatterns = [
     path('api/chatbot/', practice_views.chatbot_api, name="chatbot_api"),
     path('api/curriculum_profile/', practice_views.curriculum_profile_api, name="curriculum_profile_api"),
     path('api/test_session/', practice_views.test_session_api, name="test_session_api"),
-    path('api/google', views.google_login, name='google-login'),
+
 ]
