@@ -1,17 +1,21 @@
-from django.shortcuts import render
-from django.http import HttpResponse
-
+from django.http import JsonResponse
 from users.utils import get_user_role
-from users.views import get_menu_by_role
 
+def home_api(request):
+    """
+    API trả về thông tin cơ bản cho React frontend
+    """
+    if request.user.is_authenticated:
+        role = get_user_role(request)
+        data = {
+            "user": {
+                "username": request.user.username,
+                "name": request.user.first_name,
+                "email": request.user.email,
+                "role": role,
+            }
+        }
+    else:
+        data = {"user": None}
 
-def home(request):
-     
-    # Lấy thông tin user_role từ session
-    user_role = get_user_role(request)
-    menu = get_menu_by_role(user_role)
-    
-    context = {
-        'menu': menu
-    }  
-    return render(request, 'index.html', context)
+    return JsonResponse(data)
