@@ -26,6 +26,7 @@ langchain-openai
 langchain-google-genai
 loguru
 google-generativeai
+djangorestframework
 djangorestframework-simplejwt
-
+requests
 
