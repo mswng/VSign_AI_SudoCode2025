@@ -58,8 +58,7 @@ class Flashcard(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='flashcards')
     front_text = models.TextField()
     back_text = models.TextField()
-    image_url = models.URLField(blank=True, null=True)
-
+    media = models.FileField(upload_to='flashcards/')  # ảnh hoặc video
     def __str__(self):
         return f"{self.topic.title}: {self.front_text[:30]}"
 
@@ -83,7 +82,7 @@ class UserFlashcard(models.Model):
 # 5. TESTS
 # ==============================
 class TestQuestion(models.Model):
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='tests')
+    flashcard = models.ForeignKey(Flashcard, on_delete=models.CASCADE, related_name='test_questions')
     question = models.TextField()
     option_a = models.CharField(max_length=255)
     option_b = models.CharField(max_length=255)
