@@ -58,7 +58,7 @@ class Flashcard(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='flashcards')
     front_text = models.TextField()
     back_text = models.TextField()
-    media = models.FileField(upload_to='flashcards/')  # ảnh hoặc video
+    media = models.FileField(upload_to='flashcards/')  
     def __str__(self):
         return f"{self.topic.title}: {self.front_text[:30]}"
 

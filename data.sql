@@ -6,16 +6,16 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Xóa dữ liệu bảng con trước
--- DELETE FROM users_aisessionlog;
--- DELETE FROM users_usertest;
--- DELETE FROM users_userflashcard;
--- DELETE FROM users_aisession;
--- DELETE FROM users_reminder;
+DELETE FROM users_aisessionlog;
+DELETE FROM users_usertest;
+DELETE FROM users_userflashcard;
+DELETE FROM users_aisession;
+DELETE FROM users_reminder;
 
 -- Xóa dữ liệu bảng chính
--- DELETE FROM users_testquestion;
--- DELETE FROM users_flashcard;
--- DELETE FROM users_topic;
+DELETE FROM users_testquestion;
+DELETE FROM users_flashcard;
+DELETE FROM users_topic;
 
 -- Reset auto_increment
 ALTER TABLE users_topic AUTO_INCREMENT = 1;
