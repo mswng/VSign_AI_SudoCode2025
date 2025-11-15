@@ -1,4 +1,4 @@
-from datetime import timedelta, date 
+from datetime import datetime, timedelta, date 
 from django.utils import timezone 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -69,8 +69,6 @@ def register_api(request):
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
-        first_name = data.get('name', username)
-        otp_verified = data.get('otp_verified', False)
 
         if not username or not email or not password:
             return JsonResponse({'error': 'Thiếu thông tin bắt buộc'}, status=400)
@@ -78,15 +76,13 @@ def register_api(request):
         if User.objects.filter(username=username).exists() or User.objects.filter(email=email).exists():
             return JsonResponse({'error': 'Email hoặc tên đăng nhập đã tồn tại'}, status=400)
 
-        if not otp_verified:
-            return JsonResponse({'error': 'Bạn phải xác thực OTP trước khi đăng ký'}, status=400)
 
-        user = User.objects.create_user(username=username, email=email, password=password, first_name=first_name)
+        user = User.objects.create_user(username=username, email=email, password=password)
         tokens = get_tokens_for_user(user)
 
         return JsonResponse({
             'message': 'Đăng ký thành công!',
-            'user': {'username': user.username, 'email': user.email, 'name': user.first_name},
+            'user': {'username': user.username, 'email': user.email,},
             'tokens': tokens
         })
     except Exception as e:
@@ -267,10 +263,11 @@ def profile_api(request):
         "email": user.email,
         "sex": getattr(customer, "sex", None),
         "date_of_birth": (
-            customer.date_of_birth.isoformat()
+            customer.date_of_birth.strftime("%d/%m/%Y")
             if getattr(customer, "date_of_birth", None)
             else None
         ),
+
     }
 
     return JsonResponse({"user": data}, status=200)
@@ -292,8 +289,8 @@ def update_profile_api(request):
 
     username = data.get("username")
     email = data.get("email")
-    sex = data.get("sex")
-    dob = data.get("date_of_birth")
+    sex = data.get("sex")  # male/female/other
+    dob = data.get("date_of_birth")  # yyyy-MM-dd
 
     # ✅ Cập nhật User
     if username:
@@ -305,13 +302,16 @@ def update_profile_api(request):
     # ✅ Cập nhật Customer (nếu có)
     customer = getattr(user, "customer", None)
     if customer:
-        if sex is not None:
+        if sex in ["male", "female", "other"]:
             customer.sex = sex
+
         if dob:
             try:
-                customer.date_of_birth = date.fromisoformat(dob)
+                dob = dob.strip()  # loại bỏ khoảng trắng đầu/cuối
+                customer.date_of_birth = datetime.strptime(dob, "%d/%m/%Y").date()
             except ValueError:
-                pass
+                return JsonResponse({"error": "Ngày sinh không hợp lệ"}, status=400)
+
         customer.save()
 
     return JsonResponse({
@@ -321,6 +321,6 @@ def update_profile_api(request):
             "username": user.username,
             "email": user.email,
             "sex": getattr(customer, "sex", None),
-            "date_of_birth": getattr(customer, "date_of_birth", None),
+            "date_of_birth": getattr(customer, "date_of_birth", None).strftime("%Y-%m-%d") if getattr(customer, "date_of_birth", None) else None,
         },
     }, status=200)
