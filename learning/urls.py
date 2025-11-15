@@ -6,4 +6,5 @@ urlpatterns = [
     path("topics/<int:topic_id>/flashcards/", get_topic_flashcards, name="get_topic_flashcards"),
     path("topics/<int:topic_id>/test-questions/", get_topic_test_questions, name="get_topic_test_questions"),
     path("topics/submit_answer/", submit_answer, name="submit_answer"),    # POST
+    path("topics/finish_quiz/", finish_quiz, name="finish_quiz"),
 ]

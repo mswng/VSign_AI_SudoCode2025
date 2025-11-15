@@ -98,17 +98,21 @@ class TestQuestion(models.Model):
 # 6. USER_TESTS
 # ==============================
 class UserTest(models.Model):
+    id = models.AutoField(primary_key=True)  # đảm bảo mỗi lần làm là 1 record mới
+
     user = models.ForeignKey(Customer, on_delete=models.CASCADE)
     test = models.ForeignKey(TestQuestion, on_delete=models.CASCADE)
+
     user_answer = models.CharField(max_length=1)
     is_correct = models.BooleanField(default=False)
     attempted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'test')
+        ordering = ['-attempted_at']
 
     def __str__(self):
         return f"Test result - {self.user.user.username} ({'Đúng' if self.is_correct else 'Sai'})"
+
 
 
 # ==============================

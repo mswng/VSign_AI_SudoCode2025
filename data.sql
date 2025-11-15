@@ -6,16 +6,16 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Xóa dữ liệu bảng con trước
-DELETE FROM users_aisessionlog;
-DELETE FROM users_usertest;
-DELETE FROM users_userflashcard;
-DELETE FROM users_aisession;
-DELETE FROM users_reminder;
+-- DELETE FROM users_aisessionlog;
+-- DELETE FROM users_usertest;
+-- DELETE FROM users_userflashcard;
+-- DELETE FROM users_aisession;
+-- DELETE FROM users_reminder;
 
 -- Xóa dữ liệu bảng chính
-DELETE FROM users_testquestion;
-DELETE FROM users_flashcard;
-DELETE FROM users_topic;
+-- DELETE FROM users_testquestion;
+-- DELETE FROM users_flashcard;
+-- DELETE FROM users_topic;
 
 -- Reset auto_increment
 ALTER TABLE users_topic AUTO_INCREMENT = 1;
@@ -35,20 +35,9 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ==========================================================
 
 
-INSERT INTO auth_user (
-    id, password, last_login, is_superuser, username, first_name,
-    last_name, email, is_staff, is_active, date_joined
-)
-VALUES
-(1, 'pbkdf2_sha256$600000$YVJo98r3n2DP69mcQEMUoo$JRDcOJvHH3GeHQRtQuB3OoRhKmuhwWEqvoNqHq5S+LQ=', NULL, 0, 'testuser1', 'Test', 'User1', 'user1@example.com', 0, 1, NOW()),
-(2, 'pbkdf2_sha256$600000$YVJo98r3n2DP69mcQEMUoo$JRDcOJvHH3GeHQRtQuB3OoRhKmuhwWEqvoNqHq5S+LQ=', NULL, 0, 'testuser2', 'Test', 'User2', 'user2@example.com', 0, 1, NOW()),
-(3, 'pbkdf2_sha256$600000$YVJo98r3n2DP69mcQEMUoo$JRDcOJvHH3GeHQRtQuB3OoRhKmuhwWEqvoNqHq5S+LQ=', NULL, 0, 'testuser3', 'Test', 'User3', 'user3@example.com', 0, 1, NOW());
+INSERT INTO `auth_user` VALUES (1,'pbkdf2_sha256$1000000$tHdwLwehkOz0jTDgVAaVcI$KAFUkv0xtdIUm8sIZuH4xdCM2owwWx7Piq9tji0YoY4=','2025-11-06 15:04:46.261764',0,'ConLan','','','suongdtt1139@ut.edu.vn',0,1,'2025-11-06 15:04:33.589207'),(2,'pbkdf2_sha256$1000000$ds5AgywURUQCQqZbYxzlON$YK0c9sY93CDKVSj++0rQCmptyrIQcArfTnWUIetcxdk=','2025-11-13 12:44:26.254826',0,'Haha','','','thanhsuongdoan756@gmail.com',0,1,'2025-11-06 15:33:11.240330'),(3,'pbkdf2_sha256$1000000$kOYkEHKylhLsKwNyncAbPX$wAOIvZV8+M01KTFK+qujorsC+6by6d19+QlfZIAlNRU=',NULL,1,'Mswng','','','msuong1265@gmail.com',1,1,'2025-11-06 15:42:38.819773'),(4,'!GsvSQ3ClaZVFqlDqDx4g3go78LQ63Km8ulW7kIXZ','2025-11-08 16:16:04.717580',0,'suong','Sương','Thanh','',0,1,'2025-11-08 16:13:23.165269'),(5,'',NULL,0,'anonymous_user','','','',0,1,'2025-11-14 08:05:20.510158');
+INSERT INTO `users_customer` VALUES ('2NJj1','suongdtt1139@ut.edu.vn','Nữ','2005-12-06','2025-11-06 15:04:34.684653',1),('aFH57','thanhsuongdoan756@gmail.com','male','2005-12-08','2025-11-06 15:33:12.174224',2),('fPxOK',NULL,'Khác',NULL,'2025-11-08 16:13:23.637455',4),('MEzHh',NULL,'Khác',NULL,'2025-11-14 08:05:20.515677',5),('vo20H',NULL,'Khác',NULL,'2025-11-06 15:42:39.380784',3);
 
-INSERT INTO users_customer (id, user_id, sex, date_of_birth)
-VALUES
-(1, 1, 'male', '2000-01-01'),
-(2, 2, 'female', '2001-05-10'),
-(3, 3, 'male', '1999-12-20');
 
 
 -- ==============

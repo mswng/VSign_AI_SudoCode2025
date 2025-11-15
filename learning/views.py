@@ -1,8 +1,10 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from users.models import Topic, Flashcard, TestQuestion, UserTest
-from django.db.models import Count
+from users.views import jwt_required
+from users.models import Topic, Flashcard, TestQuestion, UserTest, UserFlashcard, Customer
+from django.db.models import Count, Q
 import json
+from django.utils import timezone
 
 #  danh sách các topic trong giao diện chủ đề 
 @csrf_exempt
@@ -110,11 +112,11 @@ def get_topic_test_questions(request, topic_id):
 
 
 @csrf_exempt
-# @login_required
+@jwt_required
 def submit_answer(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=400)
-
+    
     data = json.loads(request.body)
     user = request.user.customer
 
@@ -145,3 +147,75 @@ def submit_answer(request):
         "flashcard_id": test.flashcard.id,
         "topic_id": test.flashcard.topic.id
     })
+
+
+@csrf_exempt
+@jwt_required
+def finish_quiz(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        topic_id = data.get("topic_id")
+
+        if not topic_id:
+            return JsonResponse({"error": "Missing topic_id"}, status=400)
+
+        user = request.user.customer  # customer
+
+        # Lấy toàn bộ flashcard theo topic
+        flashcards = Flashcard.objects.filter(topic_id=topic_id)
+
+        if not flashcards.exists():
+            return JsonResponse({"error": "Topic has no flashcards"}, status=404)
+
+        updated = 0
+
+        for flash in flashcards:
+
+            # Lấy danh sách QUESTION (quiz) liên quan đến flashcard
+            questions = TestQuestion.objects.filter(flashcard=flash)
+
+            # Lấy thống kê từ bảng UserTest
+            stats = UserTest.objects.filter(
+                user=user,
+                test__in=questions
+            ).aggregate(
+                total=Count("id"),
+                correct=Count("id", filter=Q(is_correct=True)),
+                wrong=Count("id", filter=Q(is_correct=False))
+            )
+
+            correct_count = stats["correct"] or 0
+            wrong_count = stats["wrong"] or 0
+
+            # Tạo hoặc cập nhật UserFlashcard
+            uf, created = UserFlashcard.objects.get_or_create(
+                user=user,
+                flashcard=flash,
+                defaults={
+                    "learned": True,
+                    "last_reviewed": timezone.now(),
+                    "correct_count": correct_count,
+                    "wrong_count": wrong_count,
+                }
+            )
+
+            if not created:
+                uf.learned = True
+                uf.last_reviewed = timezone.now()
+                uf.correct_count = correct_count
+                uf.wrong_count = wrong_count
+                uf.save()
+
+            updated += 1
+
+        return JsonResponse({
+            "success": True,
+            "message": "Đã đánh dấu toàn bộ flashcard là đã học.",
+            "updated_flashcards": updated
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
