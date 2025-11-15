@@ -74,11 +74,8 @@ def register_api(request):
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
-<<<<<<< HEAD
         first_name = data.get('name', username)
      
-=======
->>>>>>> 8f6a82b72ac1ab780291e0244241b75086780777
 
         if not username or not email or not password:
             return JsonResponse({'error': 'Thiếu thông tin bắt buộc'}, status=400)
@@ -87,7 +84,6 @@ def register_api(request):
             return JsonResponse({'error': 'Email hoặc tên đăng nhập đã tồn tại'}, status=400)
 
 
-<<<<<<< HEAD
         user = User.objects.create_user(username=username, email=email, password=password, first_name=first_name, is_active=False)
         
         otp_code, otp_expiry = create_and_send_otp(email)
@@ -101,15 +97,6 @@ def register_api(request):
 
         return JsonResponse({
             'message': 'Đăng ký thành công! vui lòng kiểm tra email để kích hoạt tài khoản.',
-=======
-        user = User.objects.create_user(username=username, email=email, password=password)
-        tokens = get_tokens_for_user(user)
-
-        return JsonResponse({
-            'message': 'Đăng ký thành công!',
-            'user': {'username': user.username, 'email': user.email,},
-            'tokens': tokens
->>>>>>> 8f6a82b72ac1ab780291e0244241b75086780777
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
