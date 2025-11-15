@@ -4,6 +4,7 @@ from django.utils import timezone
 import nanoid
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from datetime import timedelta
 
 def generate_short_id():
     return nanoid.generate(size=5)
@@ -26,6 +27,14 @@ class Customer(models.Model):
     date_of_birth = models.DateField(blank=True, null=True)
     joined_date = models.DateTimeField(default=timezone.now)
 
+    is_activated = models.BooleanField(default=False)
+
+    activation_expiry = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Thời hạn nhập OTP để kích hoạt tài khoản"
+    )
+
     def __str__(self):
         return self.user.username
 
@@ -33,7 +42,12 @@ class Customer(models.Model):
 @receiver(post_save, sender=User)
 def create_or_update_customer(sender, instance, created, **kwargs):
     if created:
-        Customer.objects.create(user=instance)
+        Customer.objects.create(
+            user=instance,
+            email=instance.email,
+            is_activated=False,
+            activation_expiry=timezone.now() + timedelta(minutes=1)
+            )
     else:
         if hasattr(instance, 'customer'):
             instance.customer.save()

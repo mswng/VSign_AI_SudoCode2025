@@ -27,10 +27,21 @@ urlpatterns = [
 
     path('api/auth/login/', views.login_api, name="login_api"),
     path('api/auth/logout/', views.logout_api, name="logout_api"),
+
+    
     path('api/auth/register/', views.register_api, name="register_api"),
-    path('api/auth/google-login/', views.google_login, name="google_login"),
+
+    path('api/auth/google/login/', views.google_get_url, name="google_get_url"),
+    path('api/auth/google/callback/', views.google_callback, name="google_callback"),
+
     path('api/auth/send-otp/', views.send_otp_api, name="send_otp_api"),
-    path('api/auth/verify-otp/', views.verify_otp_api, name="verify_otp_api"),
+    path('api/auth/verify-otp-register/', views.verify_otp_register_api, name="verify-otp-register"),
+
+    # xác thực email để đặt lại mật khẩu
+    path('api/auth/reset-pass-validateEmail-api/', views.reset_pass_validateEmail_api, name="reset_pass_validateEmail_api"),
+    # xác thực OTP để đặt lại mật khẩu
+    path('api/auth/reset-pass-validateOtp-api/', views.reset_pass_validateOtp_api, name="reset_pass_validateOtp_api"),
+    # đặt lại mật khẩu
     path('api/auth/change-password/', views.change_password_api, name="change_password_api"),
 
     path('api/auth/profile/', views.profile_api, name='profile_api'),
