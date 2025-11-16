@@ -9,6 +9,11 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 import json, os, requests as py_requests
 from .utils import send_otp_email, generate_otp
+from datetime import timedelta
+import urllib.parse
+import requests
+from users.models import Customer
+
 
 
 
@@ -63,12 +68,14 @@ def login_api(request):
 # ===================== 🆕 REGISTER =====================
 @csrf_exempt
 def register_api(request):
-    """Đăng ký user, yêu cầu OTP đã xác thực"""
+    """Đăng ký user"""
     try:
         data = json.loads(request.body)
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
+        first_name = data.get('name', username)
+     
 
         if not username or not email or not password:
             return JsonResponse({'error': 'Thiếu thông tin bắt buộc'}, status=400)
@@ -77,57 +84,137 @@ def register_api(request):
             return JsonResponse({'error': 'Email hoặc tên đăng nhập đã tồn tại'}, status=400)
 
 
-        user = User.objects.create_user(username=username, email=email, password=password)
-        tokens = get_tokens_for_user(user)
+        user = User.objects.create_user(username=username, email=email, password=password, first_name=first_name, is_active=False)
+        
+        otp_code, otp_expiry = create_and_send_otp(email)
+
+        # Lưu OTP vào session
+        request.session['otp_code'] = otp_code
+        request.session['otp_email'] = email
+        request.session['otp_purpose'] = "register"
+        request.session['otp_expiry'] = otp_expiry.isoformat()
+        request.session.set_expiry(60)
 
         return JsonResponse({
-            'message': 'Đăng ký thành công!',
-            'user': {'username': user.username, 'email': user.email,},
-            'tokens': tokens
+            'message': 'Đăng ký thành công! vui lòng kiểm tra email để kích hoạt tài khoản.',
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
 
 # ===================== 🌐 GOOGLE LOGIN =====================
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+@csrf_exempt
+def google_get_url(request):
+    google_auth_base = "https://accounts.google.com/o/oauth2/v2/auth"
+
+    params = {
+        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI"),   
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account"
+    }
+
+    url = f"{google_auth_base}?{urllib.parse.urlencode(params)}"
+
+    return JsonResponse({"auth_url": url})
 
 @csrf_exempt
-def google_login(request):
-    if request.method != "POST":
-        return JsonResponse({'error': 'POST required'}, status=400)
+def google_callback(request):
+    try:
+        code = request.GET.get('code')
+
+        if not code:
+            return JsonResponse({"error": "Missing code"}, status=400)
+
+        #  Đổi code lấy token
+        token_url = "https://oauth2.googleapis.com/token"
+        data = {
+            "code": code,
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),          
+            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),  
+            "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI"),     
+            "grant_type": "authorization_code",
+        }
+
+        token_res = requests.post(token_url, data=data)
+        token_json = token_res.json()
+
+        if "access_token" not in token_json:
+            return JsonResponse({
+                "error": "Failed to exchange token",
+                "details": token_json
+            }, status=400)
+
+        access_token = token_json["access_token"]
+
+        #  Lấy thông tin user
+        user_info_res = requests.get(  
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        user_info = user_info_res.json()
+
+        email = user_info.get("email")
+        name = user_info.get("name") or ""
+
+        if not email:
+            return JsonResponse({"error": "Google did not return email"}, status=400)
+
+        # Tạo hoặc lấy user
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "username": email.split("@")[0],
+                "first_name": name.split()[0] if name else "",
+                "last_name": " ".join(name.split()[1:]) if name else ""
+            }
+        )
+
+        # Đảm bảo Customer tồn tại và kích hoạt
+        customer, c_created = Customer.objects.get_or_create(
+            user=user,
+            defaults={
+                "email": email,
+                "is_activated": True,
     
-    data = json.loads(request.body)
-    token = data.get('token')
-    if not token:
-        return JsonResponse({'error': 'Token is required'}, status=400)
+            }
+        )
 
-    verify_url = f'https://oauth2.googleapis.com/tokeninfo?id_token={token}'
-    resp = py_requests.get(verify_url)
-    if resp.status_code != 200:
-        return JsonResponse({'error': 'Invalid Google token'}, status=400)
+        if not c_created:   # Customer đã tồn tại
+            customer.is_activated = True
+    
+            if not customer.email:
+                customer.email = email
+            customer.save()
 
-    info = resp.json()
-    email = info.get('email')
-    name = info.get('name')
+        #  Tạo JWT
+        refresh = RefreshToken.for_user(user)
 
-    if not email:
-        return JsonResponse({'error': 'Google không trả về email'}, status=400)
+        return JsonResponse({
+            "success": True,
+            "message": "Google login successful",
+            "created": created,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.get_full_name() or user.username
+            },
+            "tokens": {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token)
+            }
+        })
 
-    user, created = User.objects.get_or_create(
-        email=email,
-        defaults={'username': email.split('@')[0], 'first_name': name}
-    )
-
-    tokens = get_tokens_for_user(user)
-
-    return JsonResponse({
-        'message': 'Google login successful',
-        'user': {'email': user.email, 'name': user.first_name},
-        'tokens': tokens,
-        'created': created,
-    })
-
+    except json.JSONDecodeError:
+        return JsonResponse({
+            "success": False,
+            "error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({
+            "success": False,
+            "error": str(e)}, status=500)
 
 # ===================== 🔒 LOGOUT =====================
 @csrf_exempt
@@ -142,6 +229,17 @@ def logout_api(request):
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
 
 # ===================== OTP =====================
+def create_and_send_otp(email):
+   
+    otp_code = generate_otp()
+    otp_expiry = timezone.now() + timedelta(minutes=1)
+
+    # Gửi email OTP
+    send_otp_email(email, otp_code)
+
+    return otp_code, otp_expiry
+
+
 @csrf_exempt
 def send_otp_api(request):
     """
@@ -161,19 +259,16 @@ def send_otp_api(request):
         if purpose == 'reset_password' and not User.objects.filter(email=email).exists():
             return JsonResponse({'error': 'Không tìm thấy người dùng với email này'}, status=400)
 
-        # Tạo OTP
-        otp_code = generate_otp()
-        now = timezone.now()
+        # Gửi OTP
+        otp_code, otp_expiry = create_and_send_otp(email)
 
         # Lưu OTP vào session (1 phút)
         request.session['otp_code'] = otp_code
         request.session['otp_email'] = email
         request.session['otp_purpose'] = purpose
-        request.session['otp_created_at'] = now.isoformat()
+        request.session['otp_expiry'] = otp_expiry.isoformat()
         request.session.set_expiry(60)
 
-        # Gửi email
-        send_otp_email(email, otp_code)
 
         return JsonResponse({
             'success': True,
@@ -183,70 +278,163 @@ def send_otp_api(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+def verify_otp_session(request, purpose: str):
 
-@csrf_exempt
-def verify_otp_api(request):
-    """
-    Xác thực OTP cho register hoặc reset_password
-    """
+     # Parse JSON body
     try:
         data = json.loads(request.body)
-        otp_input = data.get('otp')
-        email_input = data.get('email')
+    except:
+        data = {}
+   
+    otp_input = data.get('otp')
+    email_input = data.get('email')
 
-        otp_code = request.session.get('otp_code')
-        otp_email = request.session.get('otp_email')
-        otp_purpose = request.session.get('otp_purpose')
-        otp_created_at = request.session.get('otp_created_at')
+    otp_code = request.session.get('otp_code')
+    otp_email = request.session.get('otp_email')
+    otp_purpose = request.session.get('otp_purpose')
+    otp_expiry = request.session.get('otp_expiry')
 
-        if not otp_code or not otp_email or not otp_created_at:
-            return JsonResponse({'success': False, 'message': 'Không có OTP trong session'})
+    print(f"[DEBUG] otp_purpose from session: '{otp_purpose}' (type: {type(otp_purpose)})")
+    print(f"[DEBUG] purpose from function arg: '{purpose}' (type: {type(purpose)})")
 
-        # Kiểm tra OTP hết hạn
-        otp_created_at = timezone.make_aware(timezone.datetime.fromisoformat(otp_created_at))
-        if timezone.now() > otp_created_at + timedelta(minutes=5):
-            # Xóa session khi hết hạn
-            for key in ['otp_code', 'otp_email', 'otp_purpose', 'otp_created_at']:
-                request.session.pop(key, None)
-            return JsonResponse({'success': False, 'message': 'OTP đã hết hạn'})
+    if otp_purpose != purpose:
+        return False, 'OTP không dùng cho mục đích này'
 
-        # Kiểm tra OTP và email
-        if otp_input != otp_code or email_input != otp_email:
-            return JsonResponse({'success': False, 'message': 'OTP không đúng'})
+    if not otp_code or not otp_email or not otp_expiry:
+        return False, 'Không có OTP trong session'
 
-        # OTP hợp lệ → xóa session
-        for key in ['otp_code', 'otp_email', 'otp_purpose', 'otp_created_at']:
+    otp_expiry = timezone.datetime.fromisoformat(otp_expiry)
+    if timezone.now() > otp_expiry + timedelta(minutes=5):
+        # Xóa session khi hết hạn
+        for key in ['otp_code', 'otp_email', 'otp_purpose', 'otp_expiry']:
             request.session.pop(key, None)
+        return False, 'OTP đã hết hạn'
 
-        return JsonResponse({'success': True, 'message': 'OTP hợp lệ', 'purpose': otp_purpose})
+    if otp_input != otp_code or email_input != otp_email:
+        return False, 'OTP không đúng'
 
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-    
+    # OTP hợp lệ → xóa session
+    for key in ['otp_code', 'otp_email', 'otp_purpose', 'otp_expiry']:
+        request.session.pop(key, None)
+
+    return True, email_input
+
+
+@csrf_exempt
+def verify_otp_register_api(request):
+    success, result = verify_otp_session(request, purpose='register')
+    if not success:
+        return JsonResponse({'success': False, 'message': result})
+
+    # OTP hợp lệ → kích hoạt user
+    try:
+        user = User.objects.get(email=result)
+        user.is_active = True
+        user.save()
+
+       # Đồng thời cập nhật Customer
+        if hasattr(user, 'customer'):
+            customer = user.customer
+            customer.is_activated = True
+            customer.save()
+        else:
+          
+            return JsonResponse({'success': False, 'message': 'Customer chưa tồn tại cho user này'})
+        
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'User không tồn tại'})
+
+    return JsonResponse({'success': True, 'message': 'Kích hoạt tài khoản thành công'})
+
+
 # ===================== RESET PASSWORD =====================
 @csrf_exempt
-def change_password_api(request):
-    """Đổi mật khẩu, yêu cầu OTP đã xác thực"""
+def reset_pass_validateEmail_api(request):
+
     try:
         data = json.loads(request.body)
+       
         email = data.get('email')
-        new_password = data.get('new_password')
-        otp_verified = data.get('otp_verified', False)
+        
 
-        if not email or not new_password:
-            return JsonResponse({'error': 'Thiếu thông tin'}, status=400)
-        if not otp_verified:
-            return JsonResponse({'error': 'Bạn phải xác thực OTP trước khi đổi mật khẩu'}, status=400)
+       
+        if User.objects.filter(email=email).exists():
+            otp_code, otp_expiry = create_and_send_otp(email)
+            # Lưu OTP vào session
+            request.session['otp_code'] = otp_code
+            request.session['otp_email'] = email
+            request.session['otp_purpose'] = "reset_pasword"
+            request.session['otp_expiry'] = otp_expiry.isoformat()
+            request.session.set_expiry(60)
+            return JsonResponse({
+                'send_opt': True,
+                'message': 'validate email thành công',
+            })
+        else:
+            return JsonResponse({
+                'send_opt': False,
+                'error': 'Không tìm thấy người dùng với email này'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
+
+@csrf_exempt
+def reset_pass_validateOtp_api(request):
+
+    # Parse JSON body
+    try:
+        data = json.loads(request.body)
+    except:
+        data = {}
+
+    email = (
+        data.get('email') or 
+        request.POST.get('email') or
+        request.GET.get('email') or
+        request.session.get('otp_email')
+    )
+
+    if( not email):
+        print("[DEBUG] Email:", email)
+        return JsonResponse({'success': False, 'message': 'Thiếu email'}, status=400)
+    elif User.objects.filter(email=email).exists() == False:
+        return JsonResponse({'success': False, 'message': 'Không tìm thấy người dùng với email này'}, status=400)
+
+    success, result = verify_otp_session(request, purpose='reset_pasword')
+
+    if not success:
+        return JsonResponse({'success': False, 'message': result})
+    return JsonResponse({'success': True, 'message': 'OTP hợp lệ'})
+
+@csrf_exempt
+def change_password_api(request):
+    """Thay đổi mật khẩu cho user đã xác thực"""
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    email = data.get("email")
+    new_password = data.get("new_password")
+
+    if not email or not new_password:
+        return JsonResponse({"error": "Email và mật khẩu mới bắt buộc"}, status=400)
+
+    try:
         user = User.objects.get(email=email)
         user.set_password(new_password)
         user.save()
-
-        return JsonResponse({'message': 'Đổi mật khẩu thành công'})
+        return JsonResponse({
+            "success": True,
+            "message": "Đổi mật khẩu thành công!",
+        }, status=200)
     except User.DoesNotExist:
-        return JsonResponse({'error': 'Người dùng không tồn tại'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": "Không tìm thấy người dùng với email này"}, status=400)
+
+    
 
 # ===================== 👤 PROFILE =====================
 @csrf_exempt
