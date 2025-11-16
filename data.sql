@@ -6,16 +6,16 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Xóa dữ liệu bảng con trước
-DELETE FROM users_aisessionlog;
-DELETE FROM users_usertest;
-DELETE FROM users_userflashcard;
-DELETE FROM users_aisession;
-DELETE FROM users_reminder;
+-- DELETE FROM users_aisessionlog;
+-- DELETE FROM users_usertest;
+-- DELETE FROM users_userflashcard;
+-- DELETE FROM users_aisession;
+-- DELETE FROM users_reminder;
 
--- Xóa dữ liệu bảng chính
-DELETE FROM users_testquestion;
-DELETE FROM users_flashcard;
-DELETE FROM users_topic;
+-- -- Xóa dữ liệu bảng chính
+-- DELETE FROM users_testquestion;
+-- DELETE FROM users_flashcard;
+-- DELETE FROM users_topic;
 
 -- Reset auto_increment
 ALTER TABLE users_topic AUTO_INCREMENT = 1;
@@ -116,61 +116,9 @@ VALUES
 (7, 'Đi bộ', 'Hai tay mô tả chân bước.', 'https://example.com/sign_walk.jpg'),
 (7, 'Ngồi', 'Hai tay mô tả động tác ngồi xuống.', 'https://example.com/sign_sit.jpg');
 
-INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
-VALUES
-(1, 1, 'A', TRUE, NOW()),
-(1, 2, 'B', TRUE, NOW()),
-(1, 3, 'C', TRUE, NOW()),
-(1, 4, 'D', TRUE, NOW()),
-(1, 5, 'E', TRUE, NOW()),
-
-(1, 6, '1', TRUE, NOW()),
-(1, 7, '5', TRUE, NOW()),
-(1, 8, '2', TRUE, NOW()),
-(1, 9, '3', TRUE, NOW()),
-(1,10, '0', TRUE, NOW());
-
-INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
-VALUES
-(2, 1, 'B', FALSE, NOW()),
-(2, 1, 'C', FALSE, NOW()),
-(2, 1, 'D', FALSE, NOW()),   -- test 1 sai 3 lần!
-
-(2, 2, 'A', FALSE, NOW()),
-(2, 3, 'B', FALSE, NOW()),
-(2, 3, 'D', FALSE, NOW()),   -- test 3 sai 2 lần
-
-(2, 4, 'A', FALSE, NOW()),
-(2, 5, 'B', FALSE, NOW()),
-(2, 6, '2', FALSE, NOW());
-
-
-
-INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
-VALUES
-(3, 1, 'A', TRUE, NOW()),
-(3, 2, 'C', FALSE, NOW()),
-(3, 3, 'C', TRUE, NOW());
-
-
--- ==============
--- 3. USER_FLASHCARDS
--- ==============
-INSERT INTO users_userflashcard (id, user_id, flashcard_id, learned, last_reviewed, correct_count, wrong_count)
-VALUES
-(1, 'aFH57', 1, TRUE, NOW(), 3, 0),
-(2, 'aFH57', 2, TRUE, NOW(), 2, 1),
-(3, '2NJj1', 3, FALSE, NULL, 0, 0),
-(4, '2NJj1', 6, TRUE, NOW(), 1, 0);
 
 -- ==============
 -- 4. TEST_QUESTIONS
--- ==============
--- INSERT INTO users_testquestion (id, topic_id, question, option_a, option_b, option_c, option_d, correct_option)
--- VALUES
--- (1, 1, 'Ký hiệu nào thể hiện chữ A?', 'Nắm tay lại', 'Giơ hai ngón tay', 'Đưa tay ra', 'Bẻ cong ngón cái', 'A'),
--- (2, 2, 'Ký hiệu nào thể hiện số 5?', 'Giơ ngón trỏ', 'Giơ cả bàn tay', 'Nắm tay lại', 'Giơ hai ngón', 'B'),
--- (3, 3, 'Ký hiệu "Cảm ơn" được thực hiện như thế nào?', 'Giơ tay lên cao', 'Đưa tay từ cằm ra ngoài', 'Vỗ tay', 'Chạm mũi', 'B');
 
 INSERT INTO users_testquestion 
 (flashcard_id, question, option_a, option_b, option_c, option_d, correct_option)
@@ -235,6 +183,52 @@ VALUES
 (29, 'Đây là hành động nào?', 'Uống', 'Ăn', 'Đi bộ', 'Ngồi', 'A'),
 (30, 'Đây là hành động nào?', 'Đi bộ', 'Ăn', 'Uống', 'Ngồi', 'A'),
 (31, 'Đây là hành động nào?', 'Ngồi', 'Ăn', 'Đi bộ', 'Uống', 'A');
+
+
+INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
+VALUES
+("2NJj1", 1, 'A', TRUE, NOW()),
+("2NJj1", 2, 'B', TRUE, NOW()),
+("2NJj1", 3, 'C', TRUE, NOW()),
+("2NJj1", 4, 'D', TRUE, NOW()),
+("2NJj1", 5, 'E', TRUE, NOW()),
+
+("2NJj1", 6, '1', TRUE, NOW()),
+("2NJj1", 7, '5', TRUE, NOW()),
+("2NJj1", 8, '2', TRUE, NOW()),
+("2NJj1", 9, '3', TRUE, NOW()),
+("2NJj1",10, '0', TRUE, NOW());
+
+INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
+VALUES
+("aFH57", 1, 'B', FALSE, NOW()),
+("aFH57", 1, 'C', FALSE, NOW()),
+("aFH57", 1, 'D', FALSE, NOW()),   -- test 1 sai 3 lần!
+
+("aFH57", 2, 'A', FALSE, NOW()),
+("aFH57", 3, 'B', FALSE, NOW()),
+("aFH57", 3, 'D', FALSE, NOW()),   -- test 3 sai 2 lần
+
+("aFH57", 4, 'A', FALSE, NOW()),
+("aFH57", 5, 'B', FALSE, NOW()),
+("aFH57", 6, '2', FALSE, NOW());
+
+
+
+INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
+VALUES
+("MEzHh", 1, 'A', TRUE, NOW()),
+("MEzHh", 2, 'C', FALSE, NOW()),
+("MEzHh", 3, 'C', TRUE, NOW());
+-- ==============
+-- 3. USER_FLASHCARDS
+-- ==============
+INSERT INTO users_userflashcard (id, user_id, flashcard_id, learned, last_reviewed, correct_count, wrong_count)
+VALUES
+(1, 'aFH57', 1, TRUE, NOW(), 3, 0),
+(2, 'aFH57', 2, TRUE, NOW(), 2, 1),
+(3, '2NJj1', 3, FALSE, NULL, 0, 0),
+(4, '2NJj1', 6, TRUE, NOW(), 1, 0);
 
 
 
