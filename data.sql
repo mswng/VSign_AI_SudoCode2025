@@ -1,7 +1,6 @@
 -- ==========================================================
 -- RESET DATABASE: SIGN LANGUAGE LEARNING PLATFORM
 -- ==========================================================
-
 -- Tắt kiểm tra foreign key (MySQL)
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -119,6 +118,7 @@ VALUES
 
 -- ==============
 -- 4. TEST_QUESTIONS
+-- ==============
 
 INSERT INTO users_testquestion 
 (flashcard_id, question, option_a, option_b, option_c, option_d, correct_option)
@@ -235,11 +235,11 @@ VALUES
 -- ==============
 -- 5. USER_TESTS
 -- ==============
-INSERT INTO users_usertest (id, user_id, test_id, user_answer, is_correct, attempted_at)
+INSERT INTO users_usertest (user_id, test_id, user_answer, is_correct, attempted_at)
 VALUES
-(1, 'aFH57', 1, 'A', TRUE, NOW()),
-(2, 'aFH57', 2, 'A', FALSE, NOW()),
-(3, '2NJj1', 3, 'B', TRUE, NOW());
+('aFH57', 1, 'A', TRUE, NOW()),
+('aFH57', 2, 'A', FALSE, NOW()),
+('2NJj1', 3, 'B', TRUE, NOW());
 
 -- ==============
 -- 6. AI_SESSIONS
