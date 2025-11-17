@@ -72,8 +72,7 @@ class Flashcard(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='flashcards')
     front_text = models.TextField()
     back_text = models.TextField()
-    image_url = models.URLField(blank=True, null=True)
-
+    media = models.FileField(upload_to='flashcards/')  
     def __str__(self):
         return f"{self.topic.title}: {self.front_text[:30]}"
 
@@ -97,7 +96,7 @@ class UserFlashcard(models.Model):
 # 5. TESTS
 # ==============================
 class TestQuestion(models.Model):
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='tests')
+    flashcard = models.ForeignKey(Flashcard, on_delete=models.CASCADE, related_name='test_questions')
     question = models.TextField()
     option_a = models.CharField(max_length=255)
     option_b = models.CharField(max_length=255)
@@ -113,17 +112,21 @@ class TestQuestion(models.Model):
 # 6. USER_TESTS
 # ==============================
 class UserTest(models.Model):
+    id = models.AutoField(primary_key=True)  # đảm bảo mỗi lần làm là 1 record mới
+
     user = models.ForeignKey(Customer, on_delete=models.CASCADE)
     test = models.ForeignKey(TestQuestion, on_delete=models.CASCADE)
+
     user_answer = models.CharField(max_length=1)
     is_correct = models.BooleanField(default=False)
     attempted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'test')
+        ordering = ['-attempted_at']
 
     def __str__(self):
         return f"Test result - {self.user.user.username} ({'Đúng' if self.is_correct else 'Sai'})"
+
 
 
 # ==============================

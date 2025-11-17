@@ -56,4 +56,9 @@ urlpatterns = [
     path('api/curriculum_profile/', practice_views.curriculum_profile_api, name="curriculum_profile_api"),
     path('api/test_session/', practice_views.test_session_api, name="test_session_api"),
 
+
+    path("api/learning/", include("learning.urls")),
+    path("api/progress/", include("progress.urls")),
+
+
 ]
