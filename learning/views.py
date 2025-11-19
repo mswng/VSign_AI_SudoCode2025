@@ -2,11 +2,18 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from users.views import jwt_required
 from users.models import Topic, Flashcard, TestQuestion, UserTest, UserFlashcard, Customer
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 import json
 from django.utils import timezone
 
 #  danh sách các topic trong giao diện chủ đề 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Count
+from users.models import Topic, Flashcard
+from users.views import jwt_required   # nếu bạn muốn yêu cầu đăng nhập
+
+#  LẤY DANH SÁCH TOPIC
 @csrf_exempt
 def get_all_topics(request):
     if request.method != "GET":
@@ -15,15 +22,14 @@ def get_all_topics(request):
     topics = (
         Topic.objects
         .annotate(flashcard_count=Count("flashcards"))
-        .values("id", "title", "flashcard_count")
+        .values("id", "title", "description", "flashcard_count")
     )
 
     return JsonResponse(list(topics), safe=False, status=200)
 
 
 
-
-#  Thông tin của 1 Flashcard trong 1 topic nào đó
+# LẤY TOÀN BỘ FLASHCARD CỦA 1 TOPIC
 @csrf_exempt
 def get_topic_flashcards(request, topic_id):
     if request.method != "GET":
@@ -35,23 +41,26 @@ def get_topic_flashcards(request, topic_id):
         return JsonResponse({"error": "Topic not found"}, status=404)
 
     flashcards = Flashcard.objects.filter(topic=topic).values(
-        "id", "front_text", "back_text", "media"
+        "id",
+        "front_text",
+        "back_text",
+        "media",        # nếu dùng URLField → trả URL nguyên bản
     )
 
     data = {
         "topic_id": topic.id,
         "topic_title": topic.title,
+        "topic_description": topic.description,
         "total_flashcards": flashcards.count(),
-        "flashcards": list(flashcards)
+        "flashcards": list(flashcards)  # Frontend tự xử lý next/prev
     }
 
-    return JsonResponse(data, status=200)
+    return JsonResponse(data, safe=False, status=200)
+
 
 
 
 # danh sách câu hỏi của một topic 
-
-
 @csrf_exempt
 def get_topic_test_questions(request, topic_id):
     if request.method != "GET":
@@ -79,7 +88,7 @@ def get_topic_test_questions(request, topic_id):
         media_url = None
         if flashcard.media:
             # build_absolute_uri -> trả full URL: http://localhost:8000/media/...
-            media_url = request.build_absolute_uri(flashcard.media.url)
+            media_url = request.build_absolute_uri(flashcard.media) if flashcard.media else None
 
         questions_data.append({
             "test_id": t.id,
@@ -116,38 +125,36 @@ def get_topic_test_questions(request, topic_id):
 def submit_answer(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=400)
-    
-    data = json.loads(request.body)
-    user = request.user.customer
 
-    test_id = data.get("test_id")
-    user_answer = data.get("user_answer")
-
-    # Lấy câu hỏi
     try:
-        test = TestQuestion.objects.select_related("flashcard", "flashcard__topic").get(id=test_id)
-    except TestQuestion.DoesNotExist:
-        return JsonResponse({"error": "Test not found"}, status=404)
+        data = json.loads(request.body)
+        question_id = data.get("question_id")
+        user_answer = data.get("answer")
 
-    # So sánh đáp án
-    is_correct = (user_answer.upper() == test.correct_option.upper())
+        if not question_id or not user_answer:
+            return JsonResponse({"error": "Thiếu question_id hoặc answer"}, status=400)
 
-    # Lưu lại kết quả
-    result = UserTest.objects.create(
-        user=user,
-        test=test,
-        user_answer=user_answer,
-        is_correct=is_correct
-    )
+        user = request.user.customer
+        question = TestQuestion.objects.get(id=question_id)
 
-    return JsonResponse({
-        "success": True,
-        "is_correct": is_correct,
-        "correct_option": test.correct_option,
-        "flashcard_id": test.flashcard.id,
-        "topic_id": test.flashcard.topic.id
-    })
+        is_correct = (user_answer.upper() == question.correct_option.upper())
 
+        # Chỉ lưu 1 record cho câu hỏi
+        UserTest.objects.create(
+            user=user,
+            test=question,
+            user_answer=user_answer.upper(),
+            is_correct=is_correct
+        )
+
+        return JsonResponse({
+            "success": True,
+            "is_correct": is_correct,
+            "correct_option": question.correct_option,
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @csrf_exempt
 @jwt_required
@@ -158,63 +165,44 @@ def finish_quiz(request):
     try:
         data = json.loads(request.body)
         topic_id = data.get("topic_id")
+        results = data.get("results")  # list flashcard results
 
-        if not topic_id:
-            return JsonResponse({"error": "Missing topic_id"}, status=400)
+        if not topic_id or results is None:
+            return JsonResponse({"error": "Missing data"}, status=400)
 
-        user = request.user.customer  # customer
+        user = request.user.customer
 
-        # Lấy toàn bộ flashcard theo topic
-        flashcards = Flashcard.objects.filter(topic_id=topic_id)
+        total_correct = 0
+        total_wrong = 0
 
-        if not flashcards.exists():
-            return JsonResponse({"error": "Topic has no flashcards"}, status=404)
+        for item in results:
+            flashcard_id = item["flashcard_id"]
+            correct = item["correct"]
+            wrong = item["wrong"]
 
-        updated = 0
+            total_correct += correct
+            total_wrong += wrong
 
-        for flash in flashcards:
+            flashcard = Flashcard.objects.get(id=flashcard_id)
 
-            # Lấy danh sách QUESTION (quiz) liên quan đến flashcard
-            questions = TestQuestion.objects.filter(flashcard=flash)
-
-            # Lấy thống kê từ bảng UserTest
-            stats = UserTest.objects.filter(
+            # Tạo bản ghi mới mỗi lần làm quiz
+            UserFlashcard.objects.create(
                 user=user,
-                test__in=questions
-            ).aggregate(
-                total=Count("id"),
-                correct=Count("id", filter=Q(is_correct=True)),
-                wrong=Count("id", filter=Q(is_correct=False))
+                flashcard=flashcard,
+                correct_count=correct,
+                wrong_count=wrong,
+                learned = (correct > 0),
+                last_reviewed=timezone.now()
             )
-
-            correct_count = stats["correct"] or 0
-            wrong_count = stats["wrong"] or 0
-
-            # Tạo hoặc cập nhật UserFlashcard
-            uf, created = UserFlashcard.objects.get_or_create(
-                user=user,
-                flashcard=flash,
-                defaults={
-                    "learned": True,
-                    "last_reviewed": timezone.now(),
-                    "correct_count": correct_count,
-                    "wrong_count": wrong_count,
-                }
-            )
-
-            if not created:
-                uf.learned = True
-                uf.last_reviewed = timezone.now()
-                uf.correct_count = correct_count
-                uf.wrong_count = wrong_count
-                uf.save()
-
-            updated += 1
 
         return JsonResponse({
             "success": True,
-            "message": "Đã đánh dấu toàn bộ flashcard là đã học.",
-            "updated_flashcards": updated
+            "total_correct": total_correct,
+            "total_wrong": total_wrong,
+            "correct_rate": (
+                (total_correct / (total_correct + total_wrong)) * 100
+                if (total_correct + total_wrong) else 0
+            )
         })
 
     except Exception as e:
