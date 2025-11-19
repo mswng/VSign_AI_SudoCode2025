@@ -30,4 +30,11 @@ djangorestframework
 djangorestframework-simplejwt
 requests
 
+
+
 mysqlclient
+
+
+
+
+
