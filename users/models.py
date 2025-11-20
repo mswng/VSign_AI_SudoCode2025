@@ -72,7 +72,7 @@ class Flashcard(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='flashcards')
     front_text = models.TextField()
     back_text = models.TextField()
-    media = models.FileField(upload_to='flashcards/')  
+    media = models.URLField(max_length=500, blank=True, null=True)
     def __str__(self):
         return f"{self.topic.title}: {self.front_text[:30]}"
 
@@ -88,8 +88,6 @@ class UserFlashcard(models.Model):
     correct_count = models.IntegerField(default=0)
     wrong_count = models.IntegerField(default=0)
 
-    class Meta:
-        unique_together = ('user', 'flashcard')
 
 
 # ==============================
@@ -105,7 +103,8 @@ class TestQuestion(models.Model):
     correct_option = models.CharField(max_length=1)  # A/B/C/D
 
     def __str__(self):
-        return f"{self.topic.title}: {self.question[:30]}"
+        return f"{self.flashcard.topic.title}: {self.question[:30]}"
+
 
 
 # ==============================
