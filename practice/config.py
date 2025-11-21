@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     )
 
     # ===== Cấu hình model & API =====
-    OPENROUTER_URL: str = "https://openrouter.ai/api/v1/chat/completions"
+    OPENROUTER_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_API_KEY: str  
-    MODEL_NAME: str = "openai/gpt-oss-20b:free"
+    MODEL_NAME: str = "x-ai/grok-4.1-fast"
 
     GEMINI_API_KEY: str = "" 
     TAVILY_API_KEY: str = "" 

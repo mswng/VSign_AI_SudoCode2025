@@ -17,8 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from users import views 
-from home import views as home_views 
-from practice import views as practice_views
+from home import views as home_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -47,18 +46,9 @@ urlpatterns = [
     path('api/auth/profile/', views.profile_api, name='profile_api'),
     path('api/auth/profile/update/', views.update_profile_api, name='update_profile_api'),
 
-
-    path('chatbot/', practice_views.ask_ai_page, name="ask_ai_page"),
-
-
-    path('api/vocab_topics/', practice_views.vocab_topics_api, name='vocab_topics_api'),
-    path('api/chatbot/', practice_views.chatbot_api, name="chatbot_api"),
-    path('api/curriculum_profile/', practice_views.curriculum_profile_api, name="curriculum_profile_api"),
-    path('api/test_session/', practice_views.test_session_api, name="test_session_api"),
-
-
     path("api/learning/", include("learning.urls")),
     path("api/progress/", include("progress.urls")),
+    path("api/practice/", include("practice.urls"))
 
 
 ]
