@@ -53,43 +53,29 @@ class CurriculumAgent:
         ).order_by('-wrong_count')
         return list(wrong_flashcards[:top_n].values_list('flashcard__front_text', flat=True))
 
-    # --- Tạo reminder nhắc học ---
-    def create_reminder(self, flashcard_ids, scheduled_time=None):
-        scheduled_time = scheduled_time or (datetime.now() + timedelta(hours=1))
-        for fc_id in flashcard_ids:
-            fc = Flashcard.objects.get(id=fc_id)
-            Reminder.objects.create(
-                user_id=self.user_id,
-                topic_id=fc.topic_id,
-                message=f"Ôn lại ký hiệu: {fc.front_text}",
-                scheduled_time=scheduled_time,
-                is_sent=False
-            )
-
-    # --- Lấy flashcards đã học / chưa học ---
-    def get_flashcards_status(self):
-        flashcards = UserFlashcard.objects.filter(user__user__id=self.user_id)
-        learned = flashcards.filter(learned=True).values_list('flashcard__front_text', flat=True)
-        not_learned = flashcards.filter(learned=False).values_list('flashcard__front_text', flat=True)
-        return {"learned": list(learned), "not_learned": list(not_learned)}
-
-    # --- Sinh câu hỏi kiểm tra đúng/sai ---
+    # --- Sinh câu hỏi kiểm tra dưới dạng hội thoại ---
     def generate_check_questions(self, num_questions=10):
         learned = list(
             UserFlashcard.objects.filter(user__user__id=self.user_id, learned=True)
-            .values_list('flashcard__front_text', flat=True)
+            .values_list("flashcard__front_text", flat=True)
         )
+
         if not learned:
-            return ["Bạn chưa học ký hiệu nào để kiểm tra. Hãy học flashcards trước!"]
+            return [
+                "Bạn chưa học ký hiệu nào cả. Hãy học một vài flashcard trước rồi quay lại đây nhé!"
+            ]
 
         random.shuffle(learned)
         selected = learned[:num_questions]
-        questions = [f"Ký hiệu '{sign}' được thực hiện như thế nào?" for sign in selected]
+
+        questions = []
+        for sign in selected:
+            questions.append(
+                f"🤖 **Hệ thống:** Này, bạn còn nhớ không? Khi làm ký hiệu **'{sign}'**, bạn sẽ thực hiện như thế nào?\n"
+                f"🧑 **Bạn:** (Hãy trả lời mô tả ký hiệu)"
+            )
         return questions
 
-    # --- Kiểm tra câu trả lời đúng/sai ---
-    def check_answer(self, user_answer, correct_answer):
-        return user_answer.strip().lower() == correct_answer.strip().lower()
 
     # --- Gợi ý bài tập dựa trên các ký hiệu sai trong session ---
     def generate_practice_tasks(self, wrong_signs=None, top_n=5):

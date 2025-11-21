@@ -21,7 +21,7 @@ def get_ai_model(prefer: str = "openrouter"):
     if settings.GEMINI_API_KEY:
         try:
             return ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model="gemini-3.5-flash",
                 temperature=0.7,
                 google_api_key=settings.GEMINI_API_KEY,
             )
