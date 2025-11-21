@@ -8,7 +8,14 @@ from django.db.models import Count
 from users.models import Topic, Flashcard
 from .agent import query_agent, get_temp_session_logs
 from users.views import jwt_required   # nếu bạn muốn yêu cầu đăng nhập
-
+@csrf_exempt
+def llm_response(request):
+    if request.method == "POST":
+        body = json.loads(request.body)
+        label = body.get("input", "")
+        # TODO: gọi LLM thực tế
+        output = f"LLM nhận label: {label}"
+        return JsonResponse({"output": output})
 #  LẤY DANH SÁCH TOPIC
 @csrf_exempt
 def get_all_topics(request):
