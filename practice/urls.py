@@ -7,5 +7,5 @@ urlpatterns = [
     path('chatbot/', chatbot_api, name="chatbot_api"),
     path('curriculum_profile/', curriculum_profile_api, name="curriculum_profile_api"),
     path('test_session/', test_session_api, name="test_session_api"),
-
+    path("llm-response/", llm_response),
 ]
